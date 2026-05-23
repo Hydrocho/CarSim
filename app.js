@@ -1217,6 +1217,17 @@ function onTeacherLockSettings(config) {
   fixedMass = config.fixedMass;
   fixedSpeed = config.fixedSpeed;
 
+  // 학생 3D 씬의 빨간 목표선 위치 동기화 (교사가 설정한 목표 거리 반영)
+  if (redLineMesh) {
+    redLineMesh.position.z = targetDistance;
+  }
+  if (redLineSignpost) {
+    redLineSignpost.position.set(10 / 2 + 1.5, 0, targetDistance);
+  }
+  if (roadText) {
+    roadText.position.z = targetDistance - 18.4;
+  }
+
   const targetDisplay = document.getElementById('student-target-display');
   if (targetDisplay) targetDisplay.innerText = `${targetDistance.toFixed(1)}m`;
 

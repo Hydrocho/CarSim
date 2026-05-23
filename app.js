@@ -777,11 +777,12 @@ function updateTeacherTargetSliderRange(mode) {
     stepVal = 0.5;
   } else if (mode === 'SPEED_ONLY') {
     // 질량 1500kg 고정, 속도 10 ~ 150km/h
-    // d_min = 1500 * 10^2 / 200000 = 0.75m
-    // d_max = 1500 * 150^2 / 200000 = 168.75m
-    minVal = 0.75;
-    maxVal = 168.75;
-    stepVal = 0.05;
+    // ⚠️ 특징: 목표 제동 거리의 범위는 학생이 선택할 수 있는 질량의 최댓값(5000kg)과 최솟값(1000kg)을 교차 고려하여
+    // 최소 속도(10km/h)+최대 질량(5000kg)일 때 계산되는 2.5m를 최소값으로,
+    // 최대 속도(150km/h)+최소 질량(1000kg)일 때 계산되는 112.5m를 최대값으로 설정합니다.
+    minVal = 2.5;
+    maxVal = 112.5;
+    stepVal = 0.5;
   } else {
     minVal = 25;
     maxVal = 95;
@@ -825,7 +826,7 @@ function setControlMode(mode) {
     guideText = '속력이 50 km/h로 잠기며, 학생들이 차량 질량만 변경할 수 있습니다. (설정 가능 거리: 12.5m ~ 62.5m)';
   } else if (mode === 'SPEED_ONLY') {
     document.getElementById('mode-btn-speed').classList.add('active');
-    guideText = '질량이 1500 kg으로 잠기며, 학생들이 초기 속력만 변경할 수 있습니다. (설정 가능 거리: 0.75m ~ 168.75m)';
+    guideText = '질량이 1500 kg으로 잠기며, 학생들이 초기 속력만 변경할 수 있습니다. (설정 가능 거리: 2.5m ~ 112.5m)';
   }
   const guideEl = document.getElementById('mode-guide-text');
   if (guideEl) guideEl.innerText = guideText;
@@ -2507,26 +2508,32 @@ function syncInputs(type, value) {
   if (isNaN(val)) return;
 
   const massSlider = document.getElementById('mass-slider');
+  const massInput = document.getElementById('mass-input');
   const speedSlider = document.getElementById('speed-slider');
+  const speedInput = document.getElementById('speed-input');
 
   if (type === 'mass') {
     if (val >= 1000 && val <= 5000) {
       mass = val;
       if (massSlider) massSlider.value = val;
+      if (massInput && document.activeElement !== massInput) massInput.value = val;
       updateCargoBoxes(mass);
     } else {
       // 타이핑 도중 즉시 잘려 나가는 불쾌감을 없애기 위해 값만 clamped 임시 적용
       mass = Math.max(1000, Math.min(5000, val));
       if (massSlider) massSlider.value = mass;
+      if (massInput && document.activeElement !== massInput) massInput.value = mass;
       updateCargoBoxes(mass);
     }
   } else if (type === 'speed') {
     if (val >= 10 && val <= 150) {
       initialSpeedKmh = val;
       if (speedSlider) speedSlider.value = val;
+      if (speedInput && document.activeElement !== speedInput) speedInput.value = val;
     } else {
       initialSpeedKmh = Math.max(10, Math.min(150, val));
       if (speedSlider) speedSlider.value = initialSpeedKmh;
+      if (speedInput && document.activeElement !== speedInput) speedInput.value = initialSpeedKmh;
     }
   }
   updateDashboard();

@@ -778,19 +778,18 @@ function updateTeacherTargetSliderRange(mode) {
 
   if (mode === 'MASS_ONLY') {
     // 속도 50km/h 고정, 질량 1000 ~ 5000kg
-    // 실제 물리 한계: d_min = 12.5m, d_max = 62.5m
-    // 학생들의 조작 여유(마진) 및 극단적인 질량 설정(1000kg/5000kg)에만 답이 국한되는 현상을 막기 위해 안전 마진 적용
-    minVal = 15.0;
-    maxVal = 60.0;
+    // d_min = 1000 * 50^2 / 200000 = 12.5m
+    // d_max = 5000 * 50^2 / 200000 = 62.5m
+    minVal = 12.5;
+    maxVal = 62.5;
     stepVal = 0.5;
   } else if (mode === 'SPEED_ONLY') {
     // 질량 1500kg 고정, 속도 10 ~ 150km/h
     // d_min = 1500 * 10^2 / 200000 = 0.75m
     // d_max = 1500 * 150^2 / 200000 = 168.75m
-    // 교사의 실제 탐구 범위를 고려해 기본 슬라이더 범위(25m~95m)를 유지
-    minVal = 25;
-    maxVal = 95;
-    stepVal = 1;
+    minVal = 0.75;
+    maxVal = 168.75;
+    stepVal = 0.05;
   } else {
     minVal = 25;
     maxVal = 95;
@@ -831,10 +830,10 @@ function setControlMode(mode) {
     guideText = '학생들이 질량과 속력을 모두 자유롭게 변경할 수 있습니다.';
   } else if (mode === 'MASS_ONLY') {
     document.getElementById('mode-btn-mass').classList.add('active');
-    guideText = '속력이 50 km/h로 잠기며, 학생들이 차량 질량만 변경할 수 있습니다. (설정 가능 거리: 15.0m ~ 60.0m)';
+    guideText = '속력이 50 km/h로 잠기며, 학생들이 차량 질량만 변경할 수 있습니다. (설정 가능 거리: 12.5m ~ 62.5m)';
   } else if (mode === 'SPEED_ONLY') {
     document.getElementById('mode-btn-speed').classList.add('active');
-    guideText = '질량이 1500 kg으로 잠기며, 학생들이 초기 속력만 변경할 수 있습니다. (설정 가능 거리: 25.0m ~ 95.0m)';
+    guideText = '질량이 1500 kg으로 잠기며, 학생들이 초기 속력만 변경할 수 있습니다. (설정 가능 거리: 0.75m ~ 168.75m)';
   }
   const guideEl = document.getElementById('mode-guide-text');
   if (guideEl) guideEl.innerText = guideText;

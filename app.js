@@ -102,6 +102,9 @@ let controlMode = 'BOTH';     // 'BOTH' | 'MASS_ONLY' | 'SPEED_ONLY'
 let fixedMass = 1500;
 let fixedSpeed = 50;
 let isDemoMode = false;       // 수파베이스 미연결 시 가상 교실 데모 모드로 작동하는 변수
+let isCollectingData = false;
+let collectedStudentIds = new Set();
+let collectionTimeout = null;
 
 let nameTagsContainer;
 let studentDomElements = {};
@@ -705,7 +708,19 @@ function setupTeacherRealtime() {
         speed: payload.speed,
         isReady: payload.isReady
       };
-      updateTeacherReadyStatus();
+      if (isCollectingData) {
+        collectedStudentIds.add(payload.studentId);
+        updateTeacherCollectionStatus();
+        if (collectedStudentIds.size >= activeStudents.length) {
+          if (collectionTimeout) {
+            clearTimeout(collectionTimeout);
+            collectionTimeout = null;
+          }
+          proceedActualLaunch();
+        }
+      } else {
+        updateTeacherReadyStatus();
+      }
     })
     .on('broadcast', { event: 'student-result' }, ({ payload }) => {
       // 학생 개별 제동 완료 정보 수신 (실시간 리더보드 반영)
@@ -945,6 +960,8 @@ window.unlockSessionSettings = unlockSessionSettings;
 
 // --- 교사용 준비 상태 집계 갱신 ---
 function updateTeacherReadyStatus() {
+  if (isCollectingData) return; // 데이터 수집 중일 때는 버튼 갱신을 개별 수집 함수에서 처리합니다.
+
   const readyFraction = document.getElementById('ready-fraction');
   const progressBar = document.getElementById('ready-progress-bar');
   const startBtn = document.getElementById('btn-teacher-start');
@@ -978,13 +995,111 @@ function updateTeacherReadyStatus() {
   }
 }
 
+// --- 교사용 실시간 데이터 수집 현황 표시 ---
+function updateTeacherCollectionStatus() {
+  const startBtn = document.getElementById('btn-teacher-start');
+  if (startBtn) {
+    const collected = collectedStudentIds.size;
+    const total = activeStudents.length;
+    startBtn.innerHTML = `<svg class="icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>⏳ 데이터 수집 중 (${collected}/${total}) | 즉시 출발`;
+    startBtn.className = 'btn btn-accent';
+  }
+}
+
 // --- 교사용 일괄 출발 트리거 ---
 async function triggerLaunchAll() {
   const startBtn = document.getElementById('btn-teacher-start');
-  if (startBtn) startBtn.disabled = true;
+  const total = activeStudents.length;
+  
+  if (isCollectingData) {
+    // ⚠️ 특징: 교사가 수집 중에 버튼을 다시 누르면 수집 과정을 즉시 중단하고 강제 출발시킵니다.
+    if (collectionTimeout) {
+      clearTimeout(collectionTimeout);
+      collectionTimeout = null;
+    }
+    proceedActualLaunch();
+    return;
+  }
+
+  let readyCount = 0;
+  activeStudents.forEach(s => {
+    if (studentReadyStates[s.id]?.isReady) readyCount++;
+  });
+
+  if (readyCount < total) {
+    // 1단계: 미준비 학생들의 데이터 수집 단계 진입
+    isCollectingData = true;
+    collectedStudentIds.clear();
+    
+    // 이미 준비 완료 상태인 학생들은 수집 목록에 자동 추가
+    activeStudents.forEach(s => {
+      if (studentReadyStates[s.id]?.isReady) {
+        collectedStudentIds.add(s.id);
+      }
+    });
+
+    updateTeacherCollectionStatus();
+
+    // 학생 기기들로 슬라이더 값 수집 요청 전송
+    if (supabaseClient && realtimeChannel) {
+      realtimeChannel.send({
+        type: 'broadcast',
+        event: 'request-slider-values'
+      });
+    } else if (isDemoMode) {
+      // 데모 가상 모드 대응
+      activeStudents.forEach((s, idx) => {
+        if (!collectedStudentIds.has(s.id)) {
+          setTimeout(() => {
+            if (isCollectingData) {
+              studentReadyStates[s.id] = {
+                studentId: s.id,
+                mass: 1000 + Math.floor(Math.random() * 17) * 250,
+                speed: 20 + Math.floor(Math.random() * 12) * 10,
+                isReady: true
+              };
+              collectedStudentIds.add(s.id);
+              updateTeacherCollectionStatus();
+              if (collectedStudentIds.size >= total) {
+                if (collectionTimeout) {
+                  clearTimeout(collectionTimeout);
+                  collectionTimeout = null;
+                }
+                proceedActualLaunch();
+              }
+            }
+          }, 400 + idx * 200);
+        }
+      });
+    }
+
+    // 3초 후 자동 강제 출발 Failsafe 적용
+    collectionTimeout = setTimeout(() => {
+      collectionTimeout = null;
+      proceedActualLaunch();
+    }, 3000);
+
+  } else {
+    // 전원 완료 상태이면 즉시 출발
+    proceedActualLaunch();
+  }
+}
+
+// --- 실제 강제 출발 처리 및 신호 전송 ---
+async function proceedActualLaunch() {
+  isCollectingData = false;
+  collectedStudentIds.clear();
+  
+  const startBtn = document.getElementById('btn-teacher-start');
+  if (startBtn) {
+    startBtn.disabled = true;
+    startBtn.innerHTML = `<svg class="icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>🚀 출발!`;
+    startBtn.className = 'btn btn-primary';
+  }
+
   simulationState = 'driving';
 
-  // 각 학생 차량 주행 기초 세팅
+  // 수집된 학생별 조작 데이터 적용
   activeStudents.forEach(s => {
     const state = studentReadyStates[s.id] || { mass: 1500, speed: 50 };
     studentCarPositions[s.id] = START_Z;
@@ -996,20 +1111,20 @@ async function triggerLaunchAll() {
   studentResults = []; // 리더보드 비우기
 
   if (supabaseClient && realtimeChannel) {
-    // 1. DB 세션 상태 주행중(PLAYING) 변경
     await supabaseClient
       .from('sessions')
       .update({ status: 'PLAYING' })
       .eq('pin_code', sessionPin);
 
-    // 2. 출발 브로드캐스트 전송
     realtimeChannel.send({
       type: 'broadcast',
       event: 'launch'
     });
   }
 }
+
 window.triggerLaunchAll = triggerLaunchAll;
+window.proceedActualLaunch = proceedActualLaunch;
 
 // --- 학생용 세션 PIN 참가 신청 ---
 function joinSession() {
@@ -1055,6 +1170,10 @@ function setupStudentRealtime() {
     .on('broadcast', { event: 'launch' }, () => {
       // 교사의 일괄 출발 발송 수신
       onLaunchTriggered();
+    })
+    .on('broadcast', { event: 'request-slider-values' }, () => {
+      // 교사의 실시간 데이터 요청 응답
+      respondWithCurrentValues();
     })
     .on('broadcast', { event: 'next-round' }, () => {
       // 다음 라운드 준비 리셋
@@ -1221,6 +1340,27 @@ function toggleStudentReady() {
   }
 }
 window.toggleStudentReady = toggleStudentReady;
+
+// --- 교사의 강제 출발 시 미준비 학생 현재 조작값 자동 수집 응답 ---
+function respondWithCurrentValues() {
+  const payload = {
+    studentId: myStudentId,
+    mass: mass,
+    speed: initialSpeedKmh,
+    isReady: true // 강제 응답이므로 준비 완료로 플래그를 올려 교사 수집 집계가 완료되도록 유도
+  };
+  if (supabaseClient && realtimeChannel) {
+    realtimeChannel.send({
+      type: 'broadcast',
+      event: 'student-ready',
+      payload
+    });
+  } else {
+    studentReadyStates[myStudentId] = payload;
+    updateTeacherReadyStatus();
+  }
+}
+window.respondWithCurrentValues = respondWithCurrentValues;
 
 // --- 교사 출발 신호 수신에 따른 주행 런칭 ---
 function onLaunchTriggered() {

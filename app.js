@@ -1,0 +1,1151 @@
+// 3D Car Braking Distance Simulation & Game
+// Built with Three.js
+
+// --- 상태 및 상수 정의 ---
+const F_BRAKE = 7716.05; // 고정 제동력 (Newton) - 500kg, 20km/h 일때 제동거리가 정확히 1m가 되도록 보정
+const START_Z = -30;  // 차량 출발 위치 (m)
+const BRAKE_Z = 0;    // 브레이크 시작 검은색 선 위치 (m)
+const WHEEL_RADIUS = 0.6; // 바퀴 반지름 (m)
+
+let scene, camera, renderer, controls;
+let clock = new THREE.Clock();
+
+// 차량 관련 객체
+let truckGroup;
+let wheels = [];
+let cargoGroup;
+let leftBrakeLight, rightBrakeLight;
+let brakePointLight;
+
+// 환경 객체
+let redLineMesh;
+let redLineSignpost;
+let roadText;
+let signboardMarkers = [];
+
+// 시뮬레이션 제어 변수
+let simulationState = 'idle'; // 'idle', 'driving', 'braking', 'stopped'
+let currentMode = 'challenge'; // 'challenge' 모드로 고정
+let mass = 1500;             // kg
+let initialSpeedKmh = 50;    // km/h
+let currentSpeedMps = 0;     // m/s
+let targetDistance = 45;     // m (챌린지 모드 목표 제동 거리)
+let brakingElapsedTime = 0;  // 제동 경과 시간 (s)
+let initialSpeedMps = 0;     // 제동 진입 시 실제 m/s
+
+// 카메라 궤도 보간용 벡터
+const offsetRear = new THREE.Vector3(-7, 4.5, -10); // 3/4 뒷모습 카메라 오프셋
+const offsetSide = new THREE.Vector3(-14, 3.5, 3);  // 측면 카메라 오프셋
+
+// --- 초기화 작업 ---
+function init() {
+  const container = document.getElementById('canvas-container');
+
+  // 1. 씬 (Scene) 설정
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xbae1ff); // 밝고 청량한 하늘색
+  scene.fog = new THREE.FogExp2(0xbae1ff, 0.0035); // 하늘빛 안개
+
+  // 2. 카메라 (Camera) 설정
+  camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+  
+  // 3. 렌더러 (Renderer) 설정
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(container.clientWidth, container.clientHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // 성능 최적화: 초고해상도 기기에서 과다 픽셀 연산을 방지하기 위해 픽셀 레이쇼 상한을 2에서 1.5로 하향
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFShadowMap; // 성능 최적화: PCFSoftShadowMap 대신 연산 속도가 빠른 PCFShadowMap 적용
+  container.appendChild(renderer.domElement);
+
+  // 4. 마우스 컨트롤 (OrbitControls) 설정
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.05;
+  controls.maxPolarAngle = Math.PI / 2 - 0.05; // 땅밑으로 카메라가 내려가지 않도록 차단
+  controls.minDistance = 5;
+  controls.maxDistance = 80;
+
+  // 5. 조명 (Lighting)
+  const ambientLight = new THREE.AmbientLight(0xe0f2fe, 0.9); // 밝은 주간 하늘색 앰비언트광
+  scene.add(ambientLight);
+
+  const sunLight = new THREE.DirectionalLight(0xffffff, 1.3); // 눈부신 백색 태양광
+  sunLight.position.set(-30, 40, -10);
+  sunLight.castShadow = true;
+  sunLight.shadow.mapSize.set(1024, 1024); // 성능 최적화: 그림자 맵 해상도를 2048에서 1024로 하향 조정 (GPU 메모리 대역폭 감소)
+  sunLight.shadow.camera.near = 0.5;
+  sunLight.shadow.camera.far = 150;
+  
+  // 그림자 영역 조절 (픽업 트럭 이동 경로 커버)
+  const d = 40;
+  sunLight.shadow.camera.left = -d;
+  sunLight.shadow.camera.right = d;
+  sunLight.shadow.camera.top = d;
+  sunLight.shadow.camera.bottom = -d;
+  scene.add(sunLight);
+
+  // 차량 제동 시 후미등 불빛을 바닥에 비추기 위한 포인트 라이트
+  brakePointLight = new THREE.PointLight(0xff0000, 0, 10);
+  scene.add(brakePointLight);
+
+  // 6. 도로 및 환경 생성
+  createEnvironment();
+
+  // 7. 픽업 트럭 생성
+  createPickupTruck();
+
+  // 8. 카메라 초기 위치 설정
+  resetCamera();
+
+  // 9. UI 이벤트 리스너 등록
+  setupUIEventListeners();
+
+  // 10. 첫 챌린지 생성 및 초기화
+  generateNewChallenge();
+
+  // 11. 애니메이션 루프 시작
+  window.addEventListener('resize', onWindowResize);
+  renderer.setAnimationLoop(update);
+}
+
+// --- 환경 객체 생성 (도로, 가로등, 나무 등) ---
+function createEnvironment() {
+  // 0. 넓은 초록색 잔디밭 지면 (하늘과 도로를 명확히 구분)
+  const groundGeo = new THREE.PlaneGeometry(1000, 1000);
+  const groundMat = new THREE.MeshStandardMaterial({ 
+    color: 0x7da87b, // 차분하고 고급스러운 세이지-그린 잔디밭 톤
+    roughness: 0.95,
+    metalness: 0.1
+  });
+  const ground = new THREE.Mesh(groundGeo, groundMat);
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.y = -0.02; // 도로 및 그리드와 Z-fighting(깜빡임) 방지
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  // 1. 대형 바닥 그리드 (밝은 잔디밭 위에 어울리는 연한 녹회색 선)
+  const gridHelper = new THREE.GridHelper(1000, 100, 0x648a61, 0x99bda8);
+  gridHelper.position.y = -0.01;
+  scene.add(gridHelper);
+
+  // 2. 아스팔트 도로
+  const roadWidth = 10;
+  const roadLength = 400;
+  const roadGeo = new THREE.BoxGeometry(roadWidth, 0.1, roadLength);
+  const roadMat = new THREE.MeshStandardMaterial({ 
+    color: 0x2b323c, // 아스팔트 도로 색상 고정
+    roughness: 0.85 
+  });
+  const road = new THREE.Mesh(roadGeo, roadMat);
+  road.position.set(0, -0.05, roadLength / 2 - 50); // Z: -50 ~ 350까지 연장
+  road.receiveShadow = true;
+  scene.add(road);
+
+  // 3. 중앙 점선 및 갓길 실선
+  const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const yellowLineMat = new THREE.MeshBasicMaterial({ color: 0xffd54f });
+
+  // 중앙 점선 (Z축 방향으로 일정 간격)
+  for (let z = -50; z < 350; z += 8) {
+    const dash = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 4), lineMat);
+    dash.rotation.x = -Math.PI / 2;
+    dash.position.set(0, 0.01, z + 2);
+    scene.add(dash);
+  }
+
+  // 좌우 황색 실선
+  const leftLine = new THREE.Mesh(new THREE.PlaneGeometry(0.12, roadLength), yellowLineMat);
+  leftLine.rotation.x = -Math.PI / 2;
+  leftLine.position.set(-roadWidth / 2 + 0.3, 0.01, roadLength / 2 - 50);
+  scene.add(leftLine);
+
+  const rightLine = new THREE.Mesh(new THREE.PlaneGeometry(0.12, roadLength), yellowLineMat);
+  rightLine.rotation.x = -Math.PI / 2;
+  rightLine.position.set(roadWidth / 2 - 0.3, 0.01, roadLength / 2 - 50);
+  scene.add(rightLine);
+
+  // 4. 브레이크 시작선 (눈에 잘 띄는 네온 민트/시안색의 얇은 선)
+  const brakeLineMat = new THREE.MeshStandardMaterial({ 
+    color: 0x00e5ff, 
+    emissive: 0x00a3cc,
+    emissiveIntensity: 0.8,
+    roughness: 0.2 
+  });
+  const brakeLine = new THREE.Mesh(new THREE.BoxGeometry(roadWidth, 0.02, 0.15), brakeLineMat);
+  brakeLine.position.set(0, 0.01, BRAKE_Z);
+  brakeLine.receiveShadow = true;
+  scene.add(brakeLine);
+
+  // 4.5. 도로 노면 위 "명인중학교 VR 실험실" 흰색 페인트 표식
+  const roadTextTexture = createRoadTextTexture("명인중학교 VR 실험실");
+  const roadTextGeo = new THREE.PlaneGeometry(40, 4.2); // Z축 길이 40m, 폭 4.2m
+  const roadTextMat = new THREE.MeshBasicMaterial({ 
+    map: roadTextTexture, 
+    transparent: true,
+    depthWrite: false // 도로 노면에 자연스럽게 겹쳐지도록 Z-fighting 및 뎁스 버퍼 설정
+  });
+  roadText = new THREE.Mesh(roadTextGeo, roadTextMat);
+  roadText.rotation.x = -Math.PI / 2;
+  roadText.rotation.z = -Math.PI / 2; // 카메라 시점(측면 뷰)에서 똑바로 보이도록 기존 대비 180도 회전 설정
+  roadText.position.set(-2.8, 0.012, targetDistance - 20); // 40m 길이의 글자 끝부분이 목표 선에 맞물리도록 배치
+  scene.add(roadText);
+
+
+  // 브레이크선 옆에 세울 간판 (START)
+  const startSign = createSignpost("START", 0xffffff, "#00e5ff");
+  startSign.position.set(roadWidth / 2 + 1.5, 0, BRAKE_Z);
+  scene.add(startSign);
+
+  // 5. 목표 정지선 (빨간색 굵은 띠) - 챌린지 모드 전용
+  const redLineMat = new THREE.MeshStandardMaterial({ 
+    color: 0xff1744, 
+    emissive: 0xaa0012,
+    emissiveIntensity: 0.5,
+    roughness: 0.6 
+  });
+  redLineMesh = new THREE.Mesh(new THREE.BoxGeometry(roadWidth, 0.02, 0.15), redLineMat);
+  redLineMesh.position.set(0, 0.01, targetDistance);
+  redLineMesh.receiveShadow = true;
+  scene.add(redLineMesh);
+
+  // 목표 정지선 옆에 세울 깃발/간판
+  redLineSignpost = createSignpost("GOAL", 0xffffff, "#ff1744");
+  redLineSignpost.position.set(roadWidth / 2 + 1.5, 0, targetDistance);
+  scene.add(redLineSignpost);
+
+  // 6. 10m 단위 거리 알림판 및 보조 가로선 배치
+  for (let d = 10; d <= 200; d += 10) {
+    // 횡단 가이드 얇은 선 (낮 시야에 맞추어 밝은 그레이로 변경)
+    const guideLine = new THREE.Mesh(new THREE.PlaneGeometry(roadWidth - 1, 0.05), new THREE.MeshBasicMaterial({ color: 0xcbd5e1 }));
+    guideLine.rotation.x = -Math.PI / 2;
+    guideLine.position.set(0, 0.005, d);
+    scene.add(guideLine);
+
+    // 거리 간판 표지판
+    const sign = createSignpost(`${d}m`, 0x94a3b8, "#475569", 0.7);
+    sign.position.set(roadWidth / 2 + 1.2, 0, d);
+    scene.add(sign);
+    signboardMarkers.push({ mesh: sign, distance: d });
+  }
+
+  // 7. 가로등 (Street Lights) 배치
+  for (let z = -30; z <= 240; z += 40) {
+    createStreetLight(roadWidth / 2 + 0.8, z, false);
+    createStreetLight(-roadWidth / 2 - 0.8, z + 20, true);
+  }
+
+  // 8. 로우폴리 나무 배치 (인스턴싱 적용으로 성능 향상)
+  createInstancedTrees();
+}
+
+// --- 도로 노면 글씨 텍스처 생성 헬퍼 (고해상도 지원) ---
+function createRoadTextTexture(text) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 2048;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  
+  // 배경 투명화
+  ctx.clearRect(0, 0, 2048, 256);
+  
+  // 글씨 스타일 정의 (선명한 도로 표지용 흰색)
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 110px "Noto Sans KR", sans-serif';
+  ctx.textAlign = 'right'; // 우측 정렬로 변경하여 텍스트 끝이 평면 끝부분에 밀착되도록 설정
+  ctx.textBaseline = 'middle';
+  
+  // 윤곽선을 주어 아스팔트 위에서 명확하게 보이도록 처리
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
+  ctx.lineWidth = 20;
+  
+  // 우측에 약간의 여백(80px)을 두고 그림
+  const xPos = 2048 - 80;
+  ctx.strokeText(text, xPos, 128);
+  ctx.fillText(text, xPos, 128);
+  
+  return new THREE.CanvasTexture(canvas);
+}
+
+// --- 텍스트 표지판 생성 헬퍼 (캔버스 텍스처 사용) ---
+function createSignpost(text, textColorHex, borderColorHex, scale = 1.0) {
+  const group = new THREE.Group();
+
+  // 지지대 쇠기둥
+  const postGeo = new THREE.CylinderGeometry(0.06, 0.06, 2.2 * scale, 8);
+  const postMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.8, roughness: 0.2 });
+  const post = new THREE.Mesh(postGeo, postMat);
+  post.position.y = (2.2 * scale) / 2;
+  post.castShadow = true;
+  group.add(post);
+
+  // 표지판 뒷면 판데기
+  const boardWidth = 1.6 * scale;
+  const boardHeight = 0.9 * scale;
+  const boardGeo = new THREE.BoxGeometry(boardWidth, boardHeight, 0.06);
+  const boardMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5 });
+  const board = new THREE.Mesh(boardGeo, boardMat);
+  board.position.y = (2.2 * scale) - (boardHeight / 2);
+  board.castShadow = true;
+  group.add(board);
+
+  // 2D 캔버스로 글자 쓰기
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+
+  // 내부 어두운 배경 채우기
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+  ctx.fillRect(0, 0, 256, 128);
+
+  // 테두리 선
+  ctx.strokeStyle = borderColorHex;
+  ctx.lineWidth = 8;
+  ctx.strokeRect(4, 4, 248, 120);
+
+  // 텍스트 그리기
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 44px "Outfit", "Noto Sans KR", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, 128, 64);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  const labelGeo = new THREE.PlaneGeometry(boardWidth - 0.05, boardHeight - 0.05);
+  const labelMat = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+  
+  // 앞뒤로 글씨판 붙이기 (회전해서 볼 수 있게)
+  const labelFront = new THREE.Mesh(labelGeo, labelMat);
+  labelFront.position.set(0, board.position.y, 0.035);
+  group.add(labelFront);
+
+  const labelBack = new THREE.Mesh(labelGeo, labelMat);
+  labelBack.position.set(0, board.position.y, -0.035);
+  labelBack.rotation.y = Math.PI;
+  group.add(labelBack);
+
+  return group;
+}
+
+// --- 가로등 생성 헬퍼 ---
+function createStreetLight(x, z, rotateLeft = false) {
+  const group = new THREE.Group();
+  group.position.set(x, 0, z);
+
+  // 기둥
+  const poleHeight = 6.0;
+  const poleGeo = new THREE.CylinderGeometry(0.08, 0.14, poleHeight, 8);
+  const poleMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8, roughness: 0.3 });
+  const pole = new THREE.Mesh(poleGeo, poleMat);
+  pole.position.y = poleHeight / 2;
+  pole.castShadow = true;
+  group.add(pole);
+
+  // 수평 암(Arm)
+  const armLength = 2.0;
+  const armGeo = new THREE.CylinderGeometry(0.05, 0.05, armLength, 8);
+  const arm = new THREE.Mesh(armGeo, poleMat);
+  arm.rotation.z = Math.PI / 2;
+  arm.position.set(rotateLeft ? -armLength / 2 : armLength / 2, poleHeight, 0);
+  group.add(arm);
+
+  // 램프 헤드
+  const headGeo = new THREE.BoxGeometry(0.6, 0.15, 0.4);
+  const headMat = new THREE.MeshStandardMaterial({ color: 0x1e293b });
+  const head = new THREE.Mesh(headGeo, headMat);
+  head.position.set(rotateLeft ? -armLength : armLength, poleHeight - 0.05, 0);
+  group.add(head);
+
+  // 가로등 발광 부위
+  const lightSourceGeo = new THREE.BoxGeometry(0.5, 0.02, 0.3);
+  const lightSourceMat = new THREE.MeshBasicMaterial({ color: 0xfffee6 }); // 은은한 웜화이트
+  const lightSource = new THREE.Mesh(lightSourceGeo, lightSourceMat);
+  lightSource.position.set(rotateLeft ? -armLength : armLength, poleHeight - 0.13, 0);
+  group.add(lightSource);
+
+  scene.add(group);
+}
+
+// --- 로우폴리 나무 인스턴싱 생성 헬퍼 (THREE.InstancedMesh 적용) ---
+function createInstancedTrees() {
+  const roadWidth = 10;
+  const treePositions = [];
+
+  // 1. 나무들의 개별 위치와 스케일, 나뭇잎 색상을 먼저 무작위 생성하여 배열에 저장
+  for (let z = -60; z < 300; z += 15) {
+    const heightScaleL = 0.8 + Math.random() * 0.5;
+    const xL = -roadWidth / 2 - 3 - Math.random() * 4;
+    const zL = z + (Math.random() - 0.5) * 5;
+    const leavesColors = [0x2e7d32, 0x388e3c, 0x4caf50];
+    const colorL = new THREE.Color(leavesColors[Math.floor(Math.random() * leavesColors.length)]);
+
+    treePositions.push({ x: xL, y: 0, z: zL, scale: heightScaleL, color: colorL });
+
+    const heightScaleR = 0.8 + Math.random() * 0.5;
+    const xR = roadWidth / 2 + 3 + Math.random() * 4;
+    const zR = z + (Math.random() - 0.5) * 5;
+    const colorR = new THREE.Color(leavesColors[Math.floor(Math.random() * leavesColors.length)]);
+
+    treePositions.push({ x: xR, y: 0, z: zR, scale: heightScaleR, color: colorR });
+  }
+
+  const count = treePositions.length;
+
+  // 2. Trunk (나무 기둥) InstancedMesh 생성
+  // base geometry의 피벗을 아래에 맞추기 위해 실린더를 Y 방향으로 0.5 이동한 뒤 geometry를 만듭니다.
+  const baseTrunkGeo = new THREE.CylinderGeometry(0.12, 0.18, 1.0, 8);
+  baseTrunkGeo.translate(0, 0.5, 0);
+
+  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5c4033, roughness: 0.9 });
+  const trunkInstancedMesh = new THREE.InstancedMesh(baseTrunkGeo, trunkMat, count);
+  trunkInstancedMesh.castShadow = true;
+  trunkInstancedMesh.receiveShadow = true;
+
+  // 3. Leaves (나뭇잎) InstancedMesh 생성
+  // 나뭇잎은 나무당 3단 콘이므로 총 개수는 count * 3
+  // ConeGeometry(1.0, 1.0, 7)을 베이스로 하고 피벗을 아래에 맞추기 위해 Y 방향으로 0.5 이동
+  const baseLeavesGeo = new THREE.ConeGeometry(1.0, 1.0, 7);
+  baseLeavesGeo.translate(0, 0.5, 0);
+
+  const leavesMat = new THREE.MeshStandardMaterial({ 
+    roughness: 0.9, 
+    flatShading: true 
+  });
+  const leavesInstancedMesh = new THREE.InstancedMesh(baseLeavesGeo, leavesMat, count * 3);
+  leavesInstancedMesh.castShadow = true;
+  leavesInstancedMesh.receiveShadow = true;
+
+  const dummy = new THREE.Object3D();
+
+  // 4. 인스턴스 행렬 및 색상 업데이트
+  for (let i = 0; i < count; i++) {
+    const tree = treePositions[i];
+    const trunkHeight = 1.0 * tree.scale;
+
+    // 기둥 매트릭스 설정 (피벗이 바닥이므로 Y축 척도를 trunkHeight로 직접 지정)
+    dummy.position.set(tree.x, tree.y, tree.z);
+    dummy.rotation.set(0, 0, 0);
+    dummy.scale.set(1, trunkHeight, 1);
+    dummy.updateMatrix();
+    trunkInstancedMesh.setMatrixAt(i, dummy.matrix);
+
+    // 나뭇잎 3단 콘 매트릭스 설정
+    for (let layer = 0; layer < 3; layer++) {
+      const coneRadius = (0.9 - layer * 0.2) * tree.scale;
+      const coneHeight = (1.1 - layer * 0.1) * tree.scale;
+      const coneY = trunkHeight + (layer * 0.7 * tree.scale);
+
+      dummy.position.set(tree.x, tree.y + coneY, tree.z);
+      dummy.rotation.set(0, 0, 0);
+      dummy.scale.set(coneRadius, coneHeight, coneRadius);
+      dummy.updateMatrix();
+
+      const leafIndex = i * 3 + layer;
+      leavesInstancedMesh.setMatrixAt(leafIndex, dummy.matrix);
+      leavesInstancedMesh.setColorAt(leafIndex, tree.color);
+    }
+  }
+
+  // 업데이트 완료 노티파이
+  trunkInstancedMesh.instanceMatrix.needsUpdate = true;
+  leavesInstancedMesh.instanceMatrix.needsUpdate = true;
+  if (leavesInstancedMesh.instanceColor) {
+    leavesInstancedMesh.instanceColor.needsUpdate = true;
+  }
+
+  scene.add(trunkInstancedMesh);
+  scene.add(leavesInstancedMesh);
+}
+
+
+// --- 3D 픽업 트럭 제작 (기하학 구조 결합) ---
+function createPickupTruck() {
+  truckGroup = new THREE.Group();
+
+  // 1. 차체 섀시 (어두운 금속 바닥)
+  const chassisGeo = new THREE.BoxGeometry(2.3, 0.3, 5.2);
+  const chassisMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.4 });
+  const chassis = new THREE.Mesh(chassisGeo, chassisMat);
+  chassis.position.y = 0.45;
+  chassis.castShadow = true;
+  chassis.receiveShadow = true;
+  truckGroup.add(chassis);
+
+  // 2. 엔진 보닛 (앞코)
+  const hoodGeo = new THREE.BoxGeometry(2.1, 0.75, 1.4);
+  const bodyPaintMat = new THREE.MeshStandardMaterial({ 
+    color: 0x00a8ff, // 메탈릭 브라이트 블루
+    metalness: 0.8, 
+    roughness: 0.2 
+  });
+  const hood = new THREE.Mesh(hoodGeo, bodyPaintMat);
+  hood.position.set(0, 0.45 + 0.15 + 0.375, 1.8);
+  hood.castShadow = true;
+  hood.receiveShadow = true;
+  truckGroup.add(hood);
+
+  // 3. 운전석 캐빈 (Cab)
+  const cabGeo = new THREE.BoxGeometry(2.0, 1.0, 1.8);
+  const cab = new THREE.Mesh(cabGeo, bodyPaintMat);
+  cab.position.set(0, 0.45 + 0.15 + 0.5, 0.3);
+  cab.castShadow = true;
+  cab.receiveShadow = true;
+  truckGroup.add(cab);
+
+  // 유리창 (유광 블랙 검정색 바)
+  const glassMat = new THREE.MeshStandardMaterial({ color: 0x0d0f12, roughness: 0.1, metalness: 0.9 });
+  
+  // 앞 유리창 (살짝 기울어짐 연출을 위해 전면에 플레이트 삽입)
+  const frontWindshield = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.7), glassMat);
+  frontWindshield.position.set(0, 1.2, 1.21);
+  frontWindshield.rotation.x = -Math.PI / 10;
+  truckGroup.add(frontWindshield);
+
+  // 옆면 창문들
+  const leftWindow = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.55), glassMat);
+  leftWindow.position.set(-1.01, 1.15, 0.3);
+  leftWindow.rotation.y = -Math.PI / 2;
+  truckGroup.add(leftWindow);
+
+  const rightWindow = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.55), glassMat);
+  rightWindow.position.set(1.01, 1.15, 0.3);
+  rightWindow.rotation.y = Math.PI / 2;
+  truckGroup.add(rightWindow);
+
+  // 뒷창문
+  const backWindow = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.5), glassMat);
+  backWindow.position.set(0, 1.15, -0.61);
+  truckGroup.add(backWindow);
+
+  // 3.5. 제동 위치 기준 데칼 (양옆 노란색 화살표 페인트 - 지면 밀착형 포인터)
+  const arrowShape = new THREE.Shape();
+  arrowShape.moveTo(-0.02, 0.40); // 얇은 깃대 시작
+  arrowShape.lineTo(0.02, 0.40);
+  arrowShape.lineTo(0.02, 0.0);
+  arrowShape.lineTo(0.10, 0.0);   // 화살촉 날개
+  arrowShape.lineTo(0, -0.15);    // 지면을 향한 화살촉 끝부분
+  arrowShape.lineTo(-0.10, 0.0);
+  arrowShape.lineTo(-0.02, 0.0);
+  arrowShape.closePath();
+
+  const arrowGeo = new THREE.ShapeGeometry(arrowShape);
+  const arrowMat = new THREE.MeshStandardMaterial({ 
+    color: 0xffd600, // 선명한 노란색
+    roughness: 0.4, 
+    metalness: 0.1 
+  });
+
+  // 우측 도어 화살표 (앞코 우측 - 지면 정렬선)
+  const rightArrow = new THREE.Mesh(arrowGeo, arrowMat);
+  rightArrow.position.set(1.065, 0.18, 2.45); // 앞 범퍼 Z=2.45에 배치, y=0.18로 맞춰 끝단이 지면 위 0.03m에 오도록 함
+  rightArrow.rotation.y = Math.PI / 2;
+  truckGroup.add(rightArrow);
+
+  // 좌측 도어 화살표 (앞코 좌측 - 지면 정렬선)
+  const leftArrow = new THREE.Mesh(arrowGeo, arrowMat);
+  leftArrow.position.set(-1.065, 0.18, 2.45); // 앞 범퍼 Z=2.45에 배치, y=0.18로 맞춰 끝단이 지면 위 0.03m에 오도록 함
+  leftArrow.rotation.y = -Math.PI / 2;
+  truckGroup.add(leftArrow);
+
+  // 4. 전면 그릴 및 헤드라이트
+  const grillGeo = new THREE.BoxGeometry(1.8, 0.4, 0.1);
+  const grillMat = new THREE.MeshStandardMaterial({ color: 0x111622, metalness: 0.9, roughness: 0.1 });
+  const grill = new THREE.Mesh(grillGeo, grillMat);
+  grill.position.set(0, 0.85, 2.51);
+  truckGroup.add(grill);
+
+  // 헤드라이트 (발광 옐로우)
+  const headlightGeo = new THREE.BoxGeometry(0.3, 0.2, 0.05);
+  const headlightMat = new THREE.MeshBasicMaterial({ color: 0xfffacd });
+  
+  const leftHeadlight = new THREE.Mesh(headlightGeo, headlightMat);
+  leftHeadlight.position.set(-0.85, 0.9, 2.53);
+  truckGroup.add(leftHeadlight);
+
+  const rightHeadlight = new THREE.Mesh(headlightGeo, headlightMat);
+  rightHeadlight.position.set(0.85, 0.9, 2.53);
+  truckGroup.add(rightHeadlight);
+
+  // 5. 트럭 적재함 (Cargo Bed) 울타리 형태
+  const bedWallMat = bodyPaintMat;
+  
+  // 바닥판
+  const bedFloor = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.1, 2.6), new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.7 }));
+  bedFloor.position.set(0, 0.65, -1.9);
+  bedFloor.receiveShadow = true;
+  truckGroup.add(bedFloor);
+
+  // 적재함 좌측 벽
+  const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.7, 2.6), bedWallMat);
+  leftWall.position.set(-1.0, 0.95, -1.9);
+  leftWall.castShadow = true;
+  leftWall.receiveShadow = true;
+  truckGroup.add(leftWall);
+
+  // 적재함 우측 벽
+  const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.7, 2.6), bedWallMat);
+  rightWall.position.set(1.0, 0.95, -1.9);
+  rightWall.castShadow = true;
+  rightWall.receiveShadow = true;
+  truckGroup.add(rightWall);
+
+  // 적재함 후면 문 (Tailgate)
+  const tailGate = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.7, 0.1), bedWallMat);
+  tailGate.position.set(0, 0.95, -3.2);
+  tailGate.castShadow = true;
+  tailGate.receiveShadow = true;
+  truckGroup.add(tailGate);
+
+  // 6. 후미 브레이크등 (Brake Lights)
+  const brakeLightGeo = new THREE.BoxGeometry(0.2, 0.25, 0.05);
+  // 초기 상태는 어두운 붉은색
+  const initialBrakeLightMat = new THREE.MeshStandardMaterial({ 
+    color: 0x3a0000, 
+    emissive: 0x000000,
+    roughness: 0.3 
+  });
+  
+  leftBrakeLight = new THREE.Mesh(brakeLightGeo, initialBrakeLightMat.clone());
+  leftBrakeLight.position.set(-0.85, 0.95, -3.26);
+  truckGroup.add(leftBrakeLight);
+
+  rightBrakeLight = new THREE.Mesh(brakeLightGeo, initialBrakeLightMat.clone());
+  rightBrakeLight.position.set(0.85, 0.95, -3.26);
+  truckGroup.add(rightBrakeLight);
+
+  // 7. 4개의 바퀴 (Wheels) 장착
+  const wheelPositions = [
+    { x: -1.15, y: 0.35, z: 1.5, isLeft: true },  // 앞왼바퀴
+    { x: 1.15, y: 0.35, z: 1.5, isLeft: false }, // 앞오른바퀴
+    { x: -1.15, y: 0.35, z: -1.6, isLeft: true }, // 뒤왼바퀴
+    { x: 1.15, y: 0.35, z: -1.6, isLeft: false } // 뒤오른바퀴
+  ];
+
+  const tireGeo = new THREE.CylinderGeometry(WHEEL_RADIUS, WHEEL_RADIUS, 0.45, 24);
+  const tireMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.85 });
+  const rimMat = new THREE.MeshStandardMaterial({ color: 0xd1d5db, metalness: 0.8, roughness: 0.2 });
+
+  wheelPositions.forEach((pos) => {
+    const wheelGroup = new THREE.Group();
+    wheelGroup.position.set(pos.x, pos.y, pos.z);
+
+    // 타이어 고무
+    const tire = new THREE.Mesh(tireGeo, tireMat);
+    tire.rotation.z = Math.PI / 2;
+    tire.castShadow = true;
+    wheelGroup.add(tire);
+
+    // 휠 림 (중앙 은색 허브)
+    const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.47, 16), rimMat);
+    rim.rotation.z = Math.PI / 2;
+    wheelGroup.add(rim);
+
+    // 휠 스포크 (회전을 확실히 시각적으로 인지할 수 있도록 스포크 디자인 추가)
+    const spoke1 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.65, 0.08), rimMat);
+    spoke1.position.x = pos.isLeft ? -0.24 : 0.24;
+    wheelGroup.add(spoke1);
+
+    const spoke2 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.65), rimMat);
+    spoke2.position.x = pos.isLeft ? -0.24 : 0.24;
+    wheelGroup.add(spoke2);
+
+    truckGroup.add(wheelGroup);
+    wheels.push(wheelGroup); // 애니메이션 업데이트용 바퀴 그룹 등록
+  });
+
+  // 8. 짐(Cargo) 관리 그룹 생성 및 트럭에 장착
+  cargoGroup = new THREE.Group();
+  cargoGroup.position.set(0, 0.7, -1.9); // 적재함 바닥 높이에 맞춰 배치
+  truckGroup.add(cargoGroup);
+
+  // 9. 질량에 기반한 짐 채우기
+  updateCargoBoxes(mass);
+
+  scene.add(truckGroup);
+}
+
+// --- 질량 값에 따른 적재함 상자들 실시간 구성 ---
+function updateCargoBoxes(currentMass) {
+  // 기존 적재함 짐 싹 비우기
+  while(cargoGroup.children.length > 0){
+    const obj = cargoGroup.children[0];
+    cargoGroup.remove(obj);
+  }
+
+  // 기본 차량 무게(1000kg) 이상일 때 상자 개수 증가
+  // 1000kg: 0개, 5000kg: 16개 상자
+  const addedWeight = currentMass - 1000;
+  const numBoxes = Math.min(16, Math.floor(addedWeight / 250));
+
+  const boxSize = 0.45;
+  const boxGeo = new THREE.BoxGeometry(boxSize, boxSize, boxSize);
+  const boxMat = new THREE.MeshStandardMaterial({ 
+    color: 0xcd853f, // 카드보드 갈색
+    roughness: 0.9 
+  });
+  
+  // 포장 테이프 데코레이션용 얇은 박스
+  const tapeMat = new THREE.MeshStandardMaterial({ color: 0xdeb887, roughness: 0.7 });
+  const tapeGeo = new THREE.BoxGeometry(0.08, 0.01, boxSize + 0.01);
+
+  // 최대 16개 박스를 적재함에 쌓을 3차원 슬롯 배정
+  // 1층에 최대 8개 (Z: 4열 x X: 2열), 2층에 최대 8개
+  const boxSlots = [];
+  
+  // 1층 슬롯 (Y = boxSize / 2)
+  for (let layer = 0; layer < 2; layer++) {
+    const yOffset = (boxSize / 2) + layer * (boxSize + 0.02);
+    for (let col = 0; col < 4; col++) {
+      const zOffset = 0.9 - col * 0.6; // 적재함 앞(0.9)부터 뒤(-0.9) 방향으로 배치
+      for (let row = 0; row < 2; row++) {
+        const xOffset = -0.45 + row * 0.9; // 좌(-0.45), 우(0.45) 배치
+        boxSlots.push({ x: xOffset, y: yOffset, z: zOffset });
+      }
+    }
+  }
+
+  // 박스 개수만큼 적재함에 상자 메쉬 생성 후 얹기
+  for (let i = 0; i < numBoxes; i++) {
+    const slot = boxSlots[i];
+    const singleBoxGroup = new THREE.Group();
+    singleBoxGroup.position.set(slot.x, slot.y, slot.z);
+
+    // 골판지 박스 몸체
+    const boxMesh = new THREE.Mesh(boxGeo, boxMat);
+    boxMesh.castShadow = true;
+    boxMesh.receiveShadow = true;
+    singleBoxGroup.add(boxMesh);
+
+    // 택배 테이프 한 줄
+    const tapeMesh = new THREE.Mesh(tapeGeo, tapeMat);
+    tapeMesh.position.y = boxSize / 2 + 0.005;
+    singleBoxGroup.add(tapeMesh);
+
+    // 실감나는 연출을 위해 각도를 살짝씩 삐뚤빼뚤하게 배치
+    singleBoxGroup.rotation.y = (Math.random() - 0.5) * 0.12;
+
+    cargoGroup.add(singleBoxGroup);
+  }
+}
+
+// --- 브레이크등 상태 변경 ---
+function setBrakeLightsActive(active) {
+  if (active) {
+    // 밝게 발광하는 붉은색 테마 적용
+    leftBrakeLight.material.color.setHex(0xff0000);
+    leftBrakeLight.material.emissive.setHex(0xff0000);
+    leftBrakeLight.material.emissiveIntensity = 3.0;
+
+    rightBrakeLight.material.color.setHex(0xff0000);
+    rightBrakeLight.material.emissive.setHex(0xff0000);
+    rightBrakeLight.material.emissiveIntensity = 3.0;
+
+    // 포인트 라이트로 뒤쪽 바닥을 붉게 밝힘
+    brakePointLight.color.setHex(0xff0000);
+    brakePointLight.intensity = 4.0;
+    brakePointLight.position.set(0, 0.8, truckGroup.position.z - 3.3);
+  } else {
+    // 끈 상태 (어두운 색상 및 발광 해제)
+    leftBrakeLight.material.color.setHex(0x400000);
+    leftBrakeLight.material.emissive.setHex(0x000000);
+    leftBrakeLight.material.emissiveIntensity = 0;
+
+    rightBrakeLight.material.color.setHex(0x400000);
+    rightBrakeLight.material.emissive.setHex(0x000000);
+    rightBrakeLight.material.emissiveIntensity = 0;
+
+    brakePointLight.intensity = 0;
+  }
+}
+
+// --- 카메라 기본 위치 리셋 ---
+function resetCamera() {
+  truckGroup.position.set(0, 0, START_Z);
+  
+  // 3/4 뒷모습 오프셋 적용
+  camera.position.copy(truckGroup.position).add(offsetRear);
+  controls.enabled = true;
+  controls.target.set(0, 0.8, START_Z + 1.5);
+  controls.update();
+}
+
+
+// --- 챌린지 모드용 새로운 목표 생성 ---
+function generateNewChallenge() {
+  if (simulationState !== 'idle' && simulationState !== 'stopped') return;
+
+  // 25m에서 95m 사이의 임의 정수 생성
+  targetDistance = Math.floor(Math.random() * (95 - 25 + 1)) + 25;
+  
+  // 빨간 목표선 Z 위치 업데이트
+  redLineMesh.position.z = targetDistance;
+  redLineSignpost.position.set(10 / 2 + 1.5, 0, targetDistance);
+  
+  // 도로 위 노면 글씨 Z 위치 업데이트 (목표 선 직전 배치)
+  if (roadText) {
+    roadText.position.z = targetDistance - 20;
+  }
+  
+  document.getElementById('target-distance-value').innerText = targetDistance.toFixed(1);
+  
+  // 반투명 목표 거리 모달 팝업 띄우기
+  showTargetModal(targetDistance);
+  
+  resetSimulation();
+}
+
+// --- 반투명 목표 거리 모달 노출 제어 ---
+function showTargetModal(dist) {
+  const modal = document.getElementById('target-modal');
+  const modalText = document.getElementById('modal-target-dist');
+  if (modal && modalText) {
+    modalText.innerText = dist.toFixed(1);
+    modal.style.display = 'flex';
+  }
+}
+
+function closeTargetModal() {
+  const modal = document.getElementById('target-modal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+}
+
+// 전역 스코프에 노출하여 HTML inline onclick에서 호출 가능하게 함
+window.closeTargetModal = closeTargetModal;
+window.showTargetModal = showTargetModal;
+
+// --- 결과 안내 모달 노출 제어 ---
+function showResultModal(actualDist, targetDist, diff, absDiff) {
+  const modal = document.getElementById('result-modal');
+  const modalTitle = document.getElementById('modal-result-title');
+  const modalActual = document.getElementById('modal-actual-dist');
+  const modalTarget = document.getElementById('modal-target-dist-result');
+  const modalFeedback = document.getElementById('modal-result-feedback');
+  
+  if (!modal) return;
+  
+  modalActual.innerText = `${actualDist.toFixed(2)}m`;
+  modalTarget.innerText = `${targetDist.toFixed(1)}m`;
+  
+  if (absDiff <= 0.6) {
+    modalFeedback.className = 'result-feedback-box success';
+    modalTitle.innerText = '🎯 미션 성공!';
+    modalFeedback.innerHTML = `목표 정지선 오차 <strong>${absDiff.toFixed(2)}m</strong> 이내로 <strong>정확히 정차</strong>했습니다!`;
+  } else {
+    modalFeedback.className = 'result-feedback-box fail';
+    if (diff > 0) {
+      modalTitle.innerText = '💥 정지선 초과 (오버런)';
+      modalFeedback.innerHTML = `목표 정지선보다 <strong>${diff.toFixed(2)}m 지나쳤습니다</strong>.`;
+    } else {
+      modalTitle.innerText = '⚠️ 제동 거리 미달 (조기 정지)';
+      modalFeedback.innerHTML = `목표 정지선에 <strong>${Math.abs(diff).toFixed(2)}m 모자라게 멈췄습니다</strong>.`;
+    }
+  }
+  
+  modal.style.display = 'flex';
+}
+
+function closeResultModal() {
+  const modal = document.getElementById('result-modal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+}
+
+window.showResultModal = showResultModal;
+window.closeResultModal = closeResultModal;
+
+// --- 시뮬레이션 및 입력 UI 동기화 ---
+function setupUIEventListeners() {
+  const massSlider = document.getElementById('mass-slider');
+  const massInput = document.getElementById('mass-input');
+  const speedSlider = document.getElementById('speed-slider');
+  const speedInput = document.getElementById('speed-input');
+
+  // 질량 제어 동기화
+  massSlider.addEventListener('input', (e) => {
+    mass = parseInt(e.target.value);
+    massInput.value = mass;
+    updateCargoBoxes(mass);
+    updateDashboard();
+  });
+  massInput.addEventListener('change', (e) => {
+    let val = parseInt(e.target.value);
+    if (isNaN(val)) val = 1500;
+    val = Math.max(1000, Math.min(5000, val));
+    mass = val;
+    massInput.value = val;
+    massSlider.value = val;
+    updateCargoBoxes(mass);
+    updateDashboard();
+  });
+
+  // 속력 제어 동기화
+  speedSlider.addEventListener('input', (e) => {
+    initialSpeedKmh = parseInt(e.target.value);
+    speedInput.value = initialSpeedKmh;
+    updateDashboard();
+  });
+  speedInput.addEventListener('change', (e) => {
+    let val = parseInt(e.target.value);
+    if (isNaN(val)) val = 50;
+    val = Math.max(10, Math.min(150, val));
+    initialSpeedKmh = val;
+    speedInput.value = val;
+    speedSlider.value = val;
+    updateDashboard();
+  });
+}
+
+// --- 대시보드 실시간 정보 갱신 ---
+function updateDashboard(currentSpeedValKmh) {
+  // 속도값 입력
+  const displaySpeed = currentSpeedValKmh !== undefined ? currentSpeedValKmh : initialSpeedKmh;
+  const displaySpeedMps = displaySpeed / 3.6;
+
+  // 운동에너지 계산 (E = 0.5 * m * v^2)
+  const energyJoules = 0.5 * mass * Math.pow(displaySpeedMps, 2);
+  const energyKiloJoules = energyJoules / 1000;
+
+  document.getElementById('energy-value').innerText = energyKiloJoules.toFixed(1);
+
+  // 운동에너지 그래프 게이지바 업데이트 (1000kg 10km/h 최소 ~ 5000kg 150km/h 최대 대비 비율)
+  // 최대 에너지: 0.5 * 5000 * (41.67)^2 = 4,340,277 J (4340 kJ)
+  const maxEnergy = 4340;
+  const energyPercent = Math.min(100, (energyKiloJoules / maxEnergy) * 100);
+  document.getElementById('energy-bar').style.width = `${energyPercent}%`;
+
+  // 상태 배지 업데이트
+  const badge = document.getElementById('status-badge');
+  badge.className = 'status-badge'; // 기본 클래스 리셋
+  
+  if (simulationState === 'idle') {
+    badge.innerText = '대기 중';
+    badge.classList.add('state-idle');
+  } else if (simulationState === 'driving') {
+    badge.innerText = '가속 주행';
+    badge.classList.add('state-driving');
+  } else if (simulationState === 'braking') {
+    badge.innerText = '제동 감속';
+    badge.classList.add('state-braking');
+  } else if (simulationState === 'stopped') {
+    badge.innerText = '정지 완료';
+    badge.classList.add('state-stopped');
+  }
+}
+
+// --- 이징(Easing) 함수: 부드러운 카메라 전환용 ---
+function easeInOutQuad(t) {
+  return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+}
+
+// --- 시뮬레이션 출발 ---
+function startSimulation() {
+  if (simulationState !== 'idle') return;
+
+  // 출발 버튼 클릭 시 안내 모달 팝업 닫기
+  closeTargetModal();
+
+  // 슬라이더 및 입력 상자 조작 불가능하도록 락 걸기
+  toggleInputs(true);
+
+  simulationState = 'driving';
+  initialSpeedMps = initialSpeedKmh / 3.6;
+  currentSpeedMps = initialSpeedMps;
+  brakingElapsedTime = 0;
+
+  // 주행 중 사용자가 카메라를 돌려 구도가 깨지는 것을 방지하기 위해 마우스 조작 비활성화
+  controls.enabled = false;
+
+  // 버튼들 비활성화 설정
+  document.getElementById('btn-start').disabled = true;
+  document.getElementById('btn-reset').disabled = false;
+  document.getElementById('btn-new-target').disabled = true;
+
+  // 결과 창 리셋
+  const resultBox = document.getElementById('result-box');
+  resultBox.style.display = 'none';
+
+  // 가상 환경 속도감 재세팅을 위해 시계 리셋
+  clock.getDelta();
+}
+
+// --- 시뮬레이션 정지 및 원상 복구 ---
+function resetSimulation() {
+  simulationState = 'idle';
+  currentSpeedMps = 0;
+  
+  // 결과 안내 모달 팝업 닫기
+  closeResultModal();
+  
+  // 브레이크등 라이트 소등
+  setBrakeLightsActive(false);
+
+  // 대시보드 텍스트 복구
+  document.getElementById('actual-distance-value').innerText = '0.0';
+  document.getElementById('result-box').style.display = 'none';
+
+  // 차량 위치 및 회전 바퀴 리셋
+  resetCamera();
+
+  // 컨트롤 락 해제
+  toggleInputs(false);
+
+  // 출발 버튼 활성화
+  document.getElementById('btn-start').disabled = false;
+  document.getElementById('btn-reset').disabled = true;
+  document.getElementById('btn-new-target').disabled = false;
+
+  updateDashboard();
+
+  // 초기화 버튼 클릭 시 안내 모달 팝업 다시 띄우기
+  showTargetModal(targetDistance);
+}
+
+function toggleInputs(disabled) {
+  document.getElementById('mass-slider').disabled = disabled;
+  document.getElementById('mass-input').disabled = disabled;
+  document.getElementById('speed-slider').disabled = disabled;
+  document.getElementById('speed-input').disabled = disabled;
+}
+
+// --- 제동 완수 및 결과 판정 ---
+function showResults() {
+  const finalDistance = truckGroup.position.z + 2.5; // 앞 범퍼(local Z=2.5) 기점으로 제동 거리 환산
+  document.getElementById('actual-distance-value').innerText = finalDistance.toFixed(2);
+
+  const resultBox = document.getElementById('result-box');
+  const resultTitle = document.getElementById('result-title');
+  const resultDesc = document.getElementById('result-desc');
+
+  // 제동 완료 후 사용자가 차량 근처에서 카메라 조작을 즐길 수 있도록 락 해제 및 타겟 갱신
+  controls.target.copy(truckGroup.position).add(new THREE.Vector3(0, 0.8, 1.5));
+  controls.enabled = true;
+  controls.update();
+
+  // 챌린지 성공 조건 판정 (목표선 대비 오차가 0.6m 이내인지 판단)
+  const diff = finalDistance - targetDistance;
+  const absDiff = Math.abs(diff);
+
+  if (absDiff <= 0.6) {
+    resultBox.className = 'result-box success'; // 스타일 시트에 녹색 테두리 반영
+    resultTitle.innerText = '🎯 미션 성공!';
+    resultDesc.innerHTML = `목표: ${targetDistance.toFixed(1)}m | 실제 제동: ${finalDistance.toFixed(2)}m<br>오차: <span style="font-weight:700; color:#4caf50;">${diff >= 0 ? '+' : ''}${diff.toFixed(2)}m</span>`;
+  } else {
+    resultBox.className = 'result-box fail'; // 스타일 시트에 적색 테두리 반영
+    if (diff > 0) {
+      resultTitle.innerText = '💥 정지선 초과 (오버런)';
+      resultDesc.innerHTML = `목표를 <span style="font-weight:700;">${diff.toFixed(2)}m</span> 초과했습니다.`;
+    } else {
+      resultTitle.innerText = '⚠️ 제동 거리 미달 (조기 정지)';
+      resultDesc.innerHTML = `목표보다 <span style="font-weight:700;">${Math.abs(diff).toFixed(2)}m</span> 덜 갔습니다.`;
+    }
+  }
+
+  resultBox.style.display = 'block';
+  updateDashboard(0);
+
+  // 결과 안내 팝업 모달 띄우기
+  showResultModal(finalDistance, targetDistance, diff, absDiff);
+}
+
+// --- 메인 업데이트 루프 (Three.js 및 물리학 실행) ---
+function update() {
+  let dt = clock.getDelta();
+  if (dt > 0.05) dt = 0.05; // 탭 전환 시 오류 방지용 캡핑
+
+  // 1. 차량 상태별 물리학 프레임 갱신
+  if (simulationState === 'driving') {
+    // 검은 브레이크선 Z=0을 향해 등속 주행
+    truckGroup.position.z += initialSpeedMps * dt;
+
+    // 바퀴 굴러가기
+    const wheelRotSpeed = initialSpeedMps / WHEEL_RADIUS;
+    wheels.forEach(w => w.rotation.x += wheelRotSpeed * dt);
+
+    // 카메라 3/4 뒷모습에서 90도 옆모습(Side view)으로 부드럽게 스윕
+    // 앞 범퍼가 브레이크선(Z=0)에 닿을 때까지(출발지 Z=-30m에서 -2.5m까지 총 27.5m 이동) 비율 progress
+    const progress = Math.max(0, Math.min(1, (truckGroup.position.z - START_Z) / (BRAKE_Z - 2.5 - START_Z)));
+    const eased = easeInOutQuad(progress);
+
+    // 위치 보간 (컨트롤 락 된 상태이므로 수동 세팅)
+    const currentOffset = new THREE.Vector3().lerpVectors(offsetRear, offsetSide, eased);
+    camera.position.copy(truckGroup.position).add(currentOffset);
+    
+    // 카메라는 차량 중앙 높이를 쳐다봄
+    const targetLook = truckGroup.position.clone().add(new THREE.Vector3(0, 0.8, 1.5));
+    camera.lookAt(targetLook);
+
+    // 앞 범퍼(local Z=2.5)가 Z=0(브레이크 라인)을 돌파하는 순간 제동 페이즈 전환
+    if (truckGroup.position.z + 2.5 >= BRAKE_Z) {
+      truckGroup.position.z = BRAKE_Z - 2.5; // 앞 범퍼가 시작선에 정확히 정렬되도록 오차 제거
+      simulationState = 'braking';
+      setBrakeLightsActive(true);
+      updateDashboard();
+    }
+  } 
+  else if (simulationState === 'braking') {
+    // 제동 페이즈: F = m * a  => a = F_brake / m
+    const deceleration = F_BRAKE / mass;
+    brakingElapsedTime += dt;
+
+    const t = brakingElapsedTime;
+    const stopTime = initialSpeedMps / deceleration;
+
+    if (t >= stopTime) {
+      // 완전히 멈춤 (앞 범퍼 기준의 위치 산정)
+      truckGroup.position.z = (Math.pow(initialSpeedMps, 2) / (2 * deceleration)) - 2.5; 
+      currentSpeedMps = 0;
+      simulationState = 'stopped';
+      showResults();
+    } else {
+      // 감속 주행 공식: x(t) = v0*t - 0.5*a*t^2 (앞 범퍼 Z=0 기점으로 셋팅)
+      truckGroup.position.z = -2.5 + (initialSpeedMps * t) - (0.5 * deceleration * Math.pow(t, 2));
+      currentSpeedMps = initialSpeedMps - (deceleration * t);
+
+      // 남은 속도에 맞추어 바퀴 회전 속도도 서서히 정지
+      const wheelRotSpeed = currentSpeedMps / WHEEL_RADIUS;
+      wheels.forEach(w => w.rotation.x += wheelRotSpeed * dt);
+
+      // 대시보드 실시간 거리 갱신 (제동 거리는 앞 범퍼 위치 Z + 2.5)
+      document.getElementById('actual-distance-value').innerText = (truckGroup.position.z + 2.5).toFixed(2);
+      
+      // 실시간 속도 기준으로 대시보드 에너지 갱신
+      const currentKmh = currentSpeedMps * 3.6;
+      updateDashboard(currentKmh);
+    }
+
+    // 제동 구간에서는 계속 고정된 카메라 Side view 유지하며 차량 추적
+    camera.position.copy(truckGroup.position).add(offsetSide);
+    
+    // 타겟 지점도 부드럽게 추종
+    const targetLook = truckGroup.position.clone().add(new THREE.Vector3(0, 0.8, 1.5));
+    camera.lookAt(targetLook);
+
+    // 제동등 포인트 조명 위치 갱신
+    if (simulationState === 'braking') {
+      brakePointLight.position.set(0, 0.8, truckGroup.position.z - 3.3);
+    }
+  } 
+  else {
+    // IDLE 이나 STOPPED 상태에서는 사용자가 자유롭게 카메라 회전 및 탐색을 즐기게끔 controls만 주기적으로 업데이트
+    controls.update();
+  }
+
+  // 2. 최종 프레임 렌더링
+  renderer.render(scene, camera);
+}
+
+// --- 창 크기 대응 반응형 뷰포트 처리 ---
+function onWindowResize() {
+  const container = document.getElementById('canvas-container');
+  camera.aspect = container.clientWidth / container.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(container.clientWidth, container.clientHeight);
+}
+
+// --- 앱 초기 실행 ---
+window.onload = () => {
+  init();
+};

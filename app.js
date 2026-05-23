@@ -52,8 +52,8 @@ CREATE POLICY "Allow public insert results" ON results
 
 // --- 수파베이스 접속 정보 설정 ---
 // ⚠️ 깃허브 배포 시 RLS를 테이블에 반드시 활성화하고 아래 정보를 본인의 수파베이스 정보로 채워 사용하세요.
-const SUPABASE_URL = "YOUR_SUPABASE_URL"; 
-const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+const SUPABASE_URL = "https://vdyvpsteofvhbvvrilxe.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZkeXZwc3Rlb2Z2aGJ2dnJpbHhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1MzQ4ODMsImV4cCI6MjA5NTExMDg4M30.9kYsTmJGigMpanoj0CWFdHOZkDTUXqZo8neNuBxXIYU";
 
 let supabaseClient = null;
 // CDN으로 로드된 supabase 글로벌 객체를 사용하여 클라이언트를 빌드합니다.
@@ -134,7 +134,7 @@ function init() {
 
   // 2. 카메라 (Camera) 설정
   camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-  
+
   // 3. 렌더러 (Renderer) 설정
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(container.clientWidth, container.clientHeight);
@@ -161,7 +161,7 @@ function init() {
   sunLight.shadow.mapSize.set(1024, 1024); // 성능 최적화: 그림자 맵 해상도를 2048에서 1024로 하향 조정 (GPU 메모리 대역폭 감소)
   sunLight.shadow.camera.near = 0.5;
   sunLight.shadow.camera.far = 150;
-  
+
   // 그림자 영역 조절 (픽업 트럭 이동 경로 커버)
   const d = 40;
   sunLight.shadow.camera.left = -d;
@@ -238,7 +238,7 @@ function rebuildEnvironment(numLanes = 1) {
 
   // 0. 넓은 초록색 잔디밭 지면
   const groundGeo = new THREE.PlaneGeometry(1000, 1000);
-  const groundMat = new THREE.MeshStandardMaterial({ 
+  const groundMat = new THREE.MeshStandardMaterial({
     color: 0x7da87b, // 차분하고 고급스러운 세이지-그린 잔디밭 톤
     roughness: 0.95,
     metalness: 0.1
@@ -256,9 +256,9 @@ function rebuildEnvironment(numLanes = 1) {
 
   // 2. 아스팔트 도로
   const roadGeo = new THREE.BoxGeometry(roadWidth, 0.1, roadLength);
-  const roadMat = new THREE.MeshStandardMaterial({ 
+  const roadMat = new THREE.MeshStandardMaterial({
     color: 0x2b323c, // 아스팔트 도로 색상 고정
-    roughness: 0.85 
+    roughness: 0.85
   });
   const road = new THREE.Mesh(roadGeo, roadMat);
   road.position.set(0, -0.05, roadLength / 2 - 50); // Z: -50 ~ 350까지 연장
@@ -303,11 +303,11 @@ function rebuildEnvironment(numLanes = 1) {
   }
 
   // 4. 브레이크 시작선 (눈에 잘 띄는 네온 민트/시안색의 얇은 선)
-  const brakeLineMat = new THREE.MeshStandardMaterial({ 
-    color: 0x00e5ff, 
+  const brakeLineMat = new THREE.MeshStandardMaterial({
+    color: 0x00e5ff,
     emissive: 0x00a3cc,
     emissiveIntensity: 0.8,
-    roughness: 0.2 
+    roughness: 0.2
   });
   const brakeLine = new THREE.Mesh(new THREE.BoxGeometry(roadWidth, 0.02, 0.15), brakeLineMat);
   brakeLine.position.set(0, 0.01, BRAKE_Z);
@@ -317,18 +317,18 @@ function rebuildEnvironment(numLanes = 1) {
   // 4.5. 도로 노면 위 "명인중학교 VR 실험실" 흰색 페인트 표식
   const roadTextTexture = createRoadTextTexture("명인중학교 VR 실험실");
   const roadTextGeo = new THREE.PlaneGeometry(40, 4.2); // Z축 길이 40m, 폭 4.2m
-  const roadTextMat = new THREE.MeshBasicMaterial({ 
-    map: roadTextTexture, 
+  const roadTextMat = new THREE.MeshBasicMaterial({
+    map: roadTextTexture,
     transparent: true,
     depthWrite: false // 도로 노면에 자연스럽게 겹쳐지도록 Z-fighting 및 뎁스 버퍼 설정
   });
   roadText = new THREE.Mesh(roadTextGeo, roadTextMat);
   roadText.rotation.x = -Math.PI / 2;
   roadText.rotation.z = -Math.PI / 2; // 카메라 시점(측면 뷰)에서 똑바로 보이도록 기존 대비 180도 회전 설정
-  
+
   // 단일 차선이면 좌측 편에, 다차선이면 중앙에 노출
   const textX = numLanes === 1 ? -2.8 : 0;
-  roadText.position.set(textX, 0.012, targetDistance - 18.4); 
+  roadText.position.set(textX, 0.012, targetDistance - 18.4);
   environmentGroup.add(roadText);
 
   // 브레이크선 옆에 세울 간판 (START)
@@ -337,11 +337,11 @@ function rebuildEnvironment(numLanes = 1) {
   environmentGroup.add(startSign);
 
   // 5. 목표 정지선 (빨간색 굵은 띠)
-  const redLineMat = new THREE.MeshStandardMaterial({ 
-    color: 0xff1744, 
+  const redLineMat = new THREE.MeshStandardMaterial({
+    color: 0xff1744,
     emissive: 0xaa0012,
     emissiveIntensity: 0.5,
-    roughness: 0.6 
+    roughness: 0.6
   });
   redLineMesh = new THREE.Mesh(new THREE.BoxGeometry(roadWidth, 0.02, 0.15), redLineMat);
   redLineMesh.position.set(0, 0.01, targetDistance);
@@ -383,25 +383,25 @@ function createRoadTextTexture(text) {
   canvas.width = 2048;
   canvas.height = 256;
   const ctx = canvas.getContext('2d');
-  
+
   // 배경 투명화
   ctx.clearRect(0, 0, 2048, 256);
-  
+
   // 글씨 스타일 정의 (선명한 도로 표지용 흰색)
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 110px "Noto Sans KR", sans-serif';
   ctx.textAlign = 'right'; // 우측 정렬로 변경하여 텍스트 끝이 평면 끝부분에 밀착되도록 설정
   ctx.textBaseline = 'middle';
-  
+
   // 윤곽선을 주어 아스팔트 위에서 명확하게 보이도록 처리
   ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
   ctx.lineWidth = 20;
-  
+
   // 우측에 약간의 여백(80px)을 두고 그림
   const xPos = 2048 - 80;
   ctx.strokeText(text, xPos, 128);
   ctx.fillText(text, xPos, 128);
-  
+
   return new THREE.CanvasTexture(canvas);
 }
 
@@ -452,7 +452,7 @@ function createSignpost(text, textColorHex, borderColorHex, scale = 1.0) {
   const texture = new THREE.CanvasTexture(canvas);
   const labelGeo = new THREE.PlaneGeometry(boardWidth - 0.05, boardHeight - 0.05);
   const labelMat = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
-  
+
   // 앞뒤로 글씨판 붙이기 (회전해서 볼 수 있게)
   const labelFront = new THREE.Mesh(labelGeo, labelMat);
   labelFront.position.set(0, board.position.y, 0.035);
@@ -546,9 +546,9 @@ function createInstancedTrees(currentRoadWidth = 10) {
   const baseLeavesGeo = new THREE.ConeGeometry(1.0, 1.0, 7);
   baseLeavesGeo.translate(0, 0.5, 0);
 
-  const leavesMat = new THREE.MeshStandardMaterial({ 
-    roughness: 0.9, 
-    flatShading: true 
+  const leavesMat = new THREE.MeshStandardMaterial({
+    roughness: 0.9,
+    flatShading: true
   });
   const leavesInstancedMesh = new THREE.InstancedMesh(baseLeavesGeo, leavesMat, count * 3);
   leavesInstancedMesh.castShadow = true;
@@ -613,16 +613,16 @@ function selectRole(role) {
   if (role === 'teacher') {
     document.getElementById('teacher-panel').style.display = 'flex';
     document.getElementById('student-panel').style.display = 'none';
-    
+
     // 기본 싱글 플레이용 차량 숨김
     if (truckGroup) truckGroup.visible = false;
-    
+
     initTeacherSession();
   } else {
     document.getElementById('teacher-panel').style.display = 'none';
     document.getElementById('student-panel').style.display = 'flex';
     document.getElementById('student-login-overlay').style.display = 'flex';
-    
+
     // 로그인 완료 전까지 메인 제어 잠금
     document.getElementById('main-ui').style.pointerEvents = 'none';
   }
@@ -636,8 +636,7 @@ async function initTeacherSession() {
   document.getElementById('teacher-pin-value').innerText = sessionPin;
 
   if (!supabaseClient) {
-    // 수파베이스 미연결 시 모의 데모 모드로 개설
-    startDemoLobby();
+    alert("수파베이스가 연결되지 않았습니다. app.js에서 SUPABASE_URL 및 SUPABASE_ANON_KEY를 설정해 주세요.");
     return;
   }
 
@@ -645,11 +644,11 @@ async function initTeacherSession() {
     // 1. DB에 세션 저장 (status: LOBBY)
     const { error } = await supabaseClient
       .from('sessions')
-      .insert([{ 
-        pin_code: sessionPin, 
-        target_distance: targetDistance, 
-        control_mode: 'BOTH', 
-        status: 'LOBBY' 
+      .insert([{
+        pin_code: sessionPin,
+        target_distance: targetDistance,
+        control_mode: 'BOTH',
+        status: 'LOBBY'
       }]);
 
     if (error) throw error;
@@ -657,9 +656,12 @@ async function initTeacherSession() {
     // 2. 실시간 채널 구독 및 Presence 연결
     setupTeacherRealtime();
 
+    // 초기 제어 모드 설정 및 슬라이더 가동 범위 초기 세팅
+    setControlMode('BOTH');
+
   } catch (err) {
-    console.error("수파베이스 세션 등록 실패. 데모 모드로 강제 전환합니다.", err);
-    startDemoLobby();
+    console.error("수파베이스 세션 등록 실패:", err);
+    alert("수파베이스 세션 등록에 실패했습니다. DB 테이블(sessions, results)이 생성되어 있는지 확인하세요.");
   }
 }
 
@@ -708,7 +710,7 @@ function setupTeacherRealtime() {
 function updateStudentLobbyUI() {
   const container = document.getElementById('student-list-container');
   const countSpan = document.getElementById('connected-count');
-  
+
   countSpan.innerText = students.length;
   container.innerHTML = '';
 
@@ -730,8 +732,8 @@ function updateStudentLobbyUI() {
 function updateTeacherTargetDist(val) {
   targetDistance = parseFloat(val);
   const label = document.getElementById('teacher-target-val-label');
-  if (label) label.innerText = `${val}m`;
-  
+  if (label) label.innerText = `${targetDistance.toFixed(1)}m`;
+
   // 빨간선 위치 동기화
   if (redLineMesh) {
     redLineMesh.position.z = targetDistance;
@@ -741,23 +743,77 @@ function updateTeacherTargetDist(val) {
 }
 window.updateTeacherTargetDist = updateTeacherTargetDist;
 
+// --- 교사용 학생 조작 모드 지정 시 슬라이더 범위 동적 제한 ---
+function updateTeacherTargetSliderRange(mode) {
+  const slider = document.getElementById('teacher-target-distance');
+  const minLabel = document.getElementById('teacher-target-min-label');
+  const maxLabel = document.getElementById('teacher-target-max-label');
+  
+  if (!slider) return;
+
+  let minVal = 25;
+  let maxVal = 95;
+  let stepVal = 1;
+
+  if (mode === 'MASS_ONLY') {
+    // 속도 50km/h 고정, 질량 1000 ~ 5000kg
+    // 실제 물리 한계: d_min = 12.5m, d_max = 62.5m
+    // 학생들의 조작 여유(마진) 및 극단적인 질량 설정(1000kg/5000kg)에만 답이 국한되는 현상을 막기 위해 안전 마진 적용
+    minVal = 15.0;
+    maxVal = 60.0;
+    stepVal = 0.5;
+  } else if (mode === 'SPEED_ONLY') {
+    // 질량 1500kg 고정, 속도 10 ~ 150km/h
+    // d_min = 1500 * 10^2 / 200000 = 0.75m
+    // d_max = 1500 * 150^2 / 200000 = 168.75m
+    // 교사의 실제 탐구 범위를 고려해 기본 슬라이더 범위(25m~95m)를 유지
+    minVal = 25;
+    maxVal = 95;
+    stepVal = 1;
+  } else {
+    minVal = 25;
+    maxVal = 95;
+    stepVal = 1;
+  }
+
+  slider.min = minVal;
+  slider.max = maxVal;
+  slider.step = stepVal;
+
+  if (minLabel) minLabel.innerText = `${minVal.toFixed(1)}m`;
+  if (maxLabel) maxLabel.innerText = `${maxVal.toFixed(1)}m`;
+
+  // 현재 설정된 targetDistance가 새로운 범위를 벗어날 경우 클램핑
+  if (targetDistance < minVal) {
+    targetDistance = minVal;
+  } else if (targetDistance > maxVal) {
+    targetDistance = maxVal;
+  }
+
+  slider.value = targetDistance;
+  updateTeacherTargetDist(targetDistance);
+}
+
 // --- 교사용 학생 조작 모드 지정 ---
 function setControlMode(mode) {
   controlMode = mode;
   document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
-  
+
   let guideText = '';
   if (mode === 'BOTH') {
     document.getElementById('mode-btn-both').classList.add('active');
     guideText = '학생들이 질량과 속력을 모두 자유롭게 변경할 수 있습니다.';
   } else if (mode === 'MASS_ONLY') {
     document.getElementById('mode-btn-mass').classList.add('active');
-    guideText = '속력이 50 km/h로 잠기며, 학생들이 차량 질량만 변경할 수 있습니다.';
+    guideText = '속력이 50 km/h로 잠기며, 학생들이 차량 질량만 변경할 수 있습니다. (설정 가능 거리: 15.0m ~ 60.0m)';
   } else if (mode === 'SPEED_ONLY') {
     document.getElementById('mode-btn-speed').classList.add('active');
-    guideText = '질량이 1500 kg으로 잠기며, 학생들이 초기 속력만 변경할 수 있습니다.';
+    guideText = '질량이 1500 kg으로 잠기며, 학생들이 초기 속력만 변경할 수 있습니다. (설정 가능 거리: 25.0m ~ 95.0m)';
   }
-  document.getElementById('mode-guide-text').innerText = guideText;
+  const guideEl = document.getElementById('mode-guide-text');
+  if (guideEl) guideEl.innerText = guideText;
+
+  updateTeacherTargetSliderRange(mode);
 }
 window.setControlMode = setControlMode;
 
@@ -769,7 +825,7 @@ async function lockSessionSettings() {
   if (lobbyEl) lobbyEl.style.display = 'none';
   const activeEl = document.getElementById('teacher-active');
   if (activeEl) activeEl.style.display = 'flex';
-  
+
   // 활성화 조건 공시
   const targetDistEl = document.getElementById('active-target-dist');
   if (targetDistEl) targetDistEl.innerText = `${targetDistance}m`;
@@ -807,10 +863,10 @@ async function lockSessionSettings() {
     // 1. DB 세션 정보 고정
     await supabaseClient
       .from('sessions')
-      .update({ 
-        target_distance: targetDistance, 
-        control_mode: controlMode, 
-        status: 'READY' 
+      .update({
+        target_distance: targetDistance,
+        control_mode: controlMode,
+        status: 'READY'
       })
       .eq('pin_code', sessionPin);
 
@@ -885,12 +941,21 @@ function updateTeacherReadyStatus() {
   const percent = total > 0 ? (readyCount / total) * 100 : 0;
   if (progressBar) progressBar.style.width = `${percent}%`;
 
-  // 학생이 최소 1명 이상 있고, 전원 준비 완료되면 일괄 출발 버튼 활성화
+  // 학생이 최소 1명 이상 있으면 일괄 출발 버튼을 활성화하여 교사가 강제 출발할 수 있도록 허용
   if (startBtn) {
-    if (total > 0 && readyCount === total) {
+    if (total > 0) {
       startBtn.disabled = false;
+      if (readyCount === total) {
+        startBtn.innerHTML = `<svg class="icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>🚀 일괄 출발 (전원 완료)`;
+        startBtn.className = 'btn btn-primary';
+      } else {
+        startBtn.innerHTML = `<svg class="icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>🚀 강제 출발 (${readyCount}/${total}명 완료)`;
+        startBtn.className = 'btn btn-accent';
+      }
     } else {
       startBtn.disabled = true;
+      startBtn.innerHTML = `<svg class="icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>일괄 출발 (대기 중)`;
+      startBtn.className = 'btn btn-primary';
     }
   }
 }
@@ -946,22 +1011,7 @@ function joinSession() {
   }
 
   if (!supabaseClient) {
-    // 데모 모드 학생 접속 시뮬레이션
-    sessionPin = "777777"; // 고정
-    myStudentId = 'student_' + Math.random().toString(36).substring(2, 6);
-    document.getElementById('student-login-overlay').style.display = 'none';
-    document.getElementById('main-ui').style.pointerEvents = 'auto';
-    showStudentLobbyWait();
-    
-    // 교사가 조건 고정한 상태를 시뮬레이션
-    setTimeout(() => {
-      onTeacherLockSettings({
-        targetDistance: 50,
-        controlMode: 'BOTH',
-        fixedMass: 1500,
-        fixedSpeed: 50
-      });
-    }, 1500);
+    alert("수파베이스가 연결되지 않았습니다. app.js에서 SUPABASE_URL 및 SUPABASE_ANON_KEY를 설정해 주세요.");
     return;
   }
 
@@ -994,12 +1044,12 @@ function setupStudentRealtime() {
     .subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
         myStudentId = 'student_' + Math.random().toString(36).substring(2, 9);
-        
+
         // Presence로 학생 정보 트래킹 등록
-        await realtimeChannel.track({ 
-          role: 'student', 
-          id: myStudentId, 
-          nickname: myNickname 
+        await realtimeChannel.track({
+          role: 'student',
+          id: myStudentId,
+          nickname: myNickname
         });
 
         document.getElementById('student-login-overlay').style.display = 'none';
@@ -1023,7 +1073,7 @@ function onTeacherLockSettings(config) {
   if (waitMsg) waitMsg.style.display = 'none';
   const dashboard = document.getElementById('student-dashboard');
   if (dashboard) dashboard.style.display = 'flex';
-  
+
   targetDistance = config.targetDistance;
   controlMode = config.controlMode;
   fixedMass = config.fixedMass;
@@ -1051,13 +1101,13 @@ function onTeacherLockSettings(config) {
       speedInput.disabled = true;
     }
     initialSpeedKmh = fixedSpeed;
-    
+
     if (massSlider) massSlider.disabled = false;
     if (massInput) massInput.disabled = false;
 
     if (speedGroup) speedGroup.classList.add('locked');
     if (massGroup) massGroup.classList.remove('locked');
-  } 
+  }
   else if (controlMode === 'SPEED_ONLY') {
     if (massSlider) {
       massSlider.value = fixedMass;
@@ -1075,7 +1125,7 @@ function onTeacherLockSettings(config) {
 
     if (massGroup) massGroup.classList.add('locked');
     if (speedGroup) speedGroup.classList.remove('locked');
-  } 
+  }
   else {
     if (massSlider) massSlider.disabled = false;
     if (massInput) massInput.disabled = false;
@@ -1109,7 +1159,7 @@ function toggleStudentReady() {
     readyBtn.className = 'btn btn-success';
     readyBtn.innerText = '✅ 준비 완료됨';
     document.getElementById('student-status-text').style.display = 'block';
-    
+
     // 슬라이더 잠금
     document.getElementById('mass-slider').disabled = true;
     document.getElementById('mass-input').disabled = true;
@@ -1164,7 +1214,7 @@ function onLaunchTriggered() {
   initialSpeedMps = initialSpeedKmh / 3.6;
   currentSpeedMps = initialSpeedMps;
   brakingElapsedTime = 0;
-  
+
   if (truckGroup) {
     truckGroup.position.set(0, 0, START_Z);
   }
@@ -1225,25 +1275,59 @@ function showStudentResultDetail(actual, offset) {
   const modal = document.getElementById('student-result-modal');
   const actualText = document.getElementById('student-actual-dist');
   const targetText = document.getElementById('student-target-dist-result');
+  const offsetText = document.getElementById('student-offset-dist');
   const feedbackBox = document.getElementById('student-result-feedback');
 
-  actualText.innerText = `${actual.toFixed(2)}m`;
-  targetText.innerText = `${targetDistance.toFixed(1)}m`;
+  if (actualText) actualText.innerText = `${actual.toFixed(2)}m`;
+  if (targetText) targetText.innerText = `${targetDistance.toFixed(1)}m`;
 
   const absDiff = Math.abs(offset);
-  if (absDiff <= 0.6) {
-    feedbackBox.className = 'result-feedback-box success';
-    feedbackBox.innerHTML = `🏆 <strong>축하합니다!</strong> 오차 <strong>${absDiff.toFixed(2)}m</strong> 이내로 <strong>정확히 정차</strong>하여 미션을 해결했습니다!`;
-  } else {
-    feedbackBox.className = 'result-feedback-box fail';
-    if (offset > 0) {
-      feedbackBox.innerHTML = `💥 <strong>정지선 초과!</strong> 목표 지점을 <strong>${offset.toFixed(2)}m 오버런</strong>했습니다.`;
+  if (offsetText) {
+    const sign = offset >= 0 ? '+' : '';
+    offsetText.innerText = `${sign}${offset.toFixed(2)}m`;
+    if (absDiff <= 0.6) {
+      offsetText.style.color = '#4caf50'; // 성공 시 연두색
     } else {
-      feedbackBox.innerHTML = `⚠️ <strong>제동거리 미달!</strong> 목표선에 <strong>${absDiff.toFixed(2)}m 도달하지 못하고</strong> 정차했습니다.`;
+      offsetText.style.color = '#ff1744'; // 실패 시 빨간색
     }
   }
 
-  modal.style.display = 'flex';
+  if (feedbackBox) {
+    if (absDiff <= 0.6) {
+      feedbackBox.className = 'result-feedback-box success';
+      feedbackBox.innerHTML = `🏆 <strong>축하합니다!</strong> 오차 <strong>${absDiff.toFixed(2)}m</strong> 이내로 <strong>정확히 정차</strong>하여 미션을 해결했습니다!`;
+    } else {
+      feedbackBox.className = 'result-feedback-box fail';
+      let tip = '';
+      if (controlMode === 'MASS_ONLY') {
+        if (offset > 0) {
+          tip = `<br><span style="font-size:0.8rem; color:#ff8a80; display:block; margin-top:8px; font-weight:500;">💡 과학 팁: 질량(m)이 감소하면 운동에너지가 작아져 제동 거리가 줄어듭니다. 질량을 더 낮춰 보세요!</span>`;
+        } else {
+          tip = `<br><span style="font-size:0.8rem; color:#ff8a80; display:block; margin-top:8px; font-weight:500;">💡 과학 팁: 질량(m)이 증가하면 운동에너지가 커져 제동 거리가 늘어납니다. 질량을 더 높여 보세요!</span>`;
+        }
+      } else if (controlMode === 'SPEED_ONLY') {
+        if (offset > 0) {
+          tip = `<br><span style="font-size:0.8rem; color:#ff8a80; display:block; margin-top:8px; font-weight:500;">💡 과학 팁: 초기 속력(v)이 느려지면 제동 거리가 제곱 비례하여 줄어듭니다. 속력을 더 낮춰 보세요!</span>`;
+        } else {
+          tip = `<br><span style="font-size:0.8rem; color:#ff8a80; display:block; margin-top:8px; font-weight:500;">💡 과학 팁: 초기 속력(v)이 빨라지면 제동 거리가 제곱 비례하여 늘어납니다. 속력을 더 높여 보세요!</span>`;
+        }
+      } else {
+        if (offset > 0) {
+          tip = `<br><span style="font-size:0.8rem; color:#ff8a80; display:block; margin-top:8px; font-weight:500;">💡 과학 팁: 질량을 낮추거나 속력을 줄여서 운동에너지를 감소시켜 보세요!</span>`;
+        } else {
+          tip = `<br><span style="font-size:0.8rem; color:#ff8a80; display:block; margin-top:8px; font-weight:500;">💡 과학 팁: 질량을 높이거나 속력을 늘려서 운동에너지를 증가시켜 보세요!</span>`;
+        }
+      }
+
+      if (offset > 0) {
+        feedbackBox.innerHTML = `💥 <strong>정지선 초과!</strong> 목표 지점을 <strong>${offset.toFixed(2)}m 오버런</strong>했습니다.${tip}`;
+      } else {
+        feedbackBox.innerHTML = `⚠️ <strong>제동거리 미달!</strong> 목표선에 <strong>${absDiff.toFixed(2)}m 도달하지 못하고</strong> 정차했습니다.${tip}`;
+      }
+    }
+  }
+
+  if (modal) modal.style.display = 'flex';
 }
 
 function closeStudentResultModal() {
@@ -1256,12 +1340,12 @@ window.closeStudentResultModal = closeStudentResultModal;
 function addStudentResult(res) {
   // 중복 삽입 방지
   if (studentResults.some(r => r.studentId === res.studentId)) return;
-  
+
   studentResults.push(res);
-  
+
   // 오차 절댓값이 작은 순서대로 정렬 (오름차순)
   studentResults.sort((a, b) => Math.abs(a.offsetDistance) - Math.abs(b.offsetDistance));
-  
+
   // 리더보드 렌더링
   updateLeaderboardUI();
 }
@@ -1273,7 +1357,7 @@ function updateLeaderboardUI() {
 
   studentResults.forEach((res, index) => {
     const tr = document.createElement('tr');
-    
+
     // 상위 3위 색상 배지 지정
     const rank = index + 1;
     if (rank === 1) tr.className = 'rank-1';
@@ -1339,7 +1423,7 @@ window.resetForNextRound = resetForNextRound;
 function onNextRoundTriggered() {
   closeStudentResultModal();
   simulationState = 'idle';
-  
+
   // 슬라이더 잠금 해제 및 준비상태 해제
   const readyBtn = document.getElementById('btn-student-ready');
   readyBtn.className = 'btn btn-primary';
@@ -1362,23 +1446,7 @@ function onNextRoundTriggered() {
 // --- 교사용 35인 다차선 가상 데모 지원 트리거 ---
 let mockRaceTimer = null;
 function startDemoLobby() {
-  isDemoMode = true;
-  sessionPin = "777777";
-  document.getElementById('teacher-pin-value').innerText = sessionPin;
-  console.log("수파베이스 미연결: 모의 과학 교실 데모 모드를 진행합니다.");
-
-  students = [];
-  updateStudentLobbyUI();
-
-  const mockNames = ["김철수", "이영희", "박민수", "정지원", "최유진"];
-  mockNames.forEach((name, i) => {
-    setTimeout(() => {
-      if (userRole === 'teacher' && isMultiplayer) {
-        students.push({ id: `mock_${i}`, nickname: name });
-        updateStudentLobbyUI();
-      }
-    }, (i + 1) * 800);
-  });
+  // 데모 모드 제거
 }
 
 // --- 교사용 다차선 도로에 맞춰 인스턴스 3D 생성 ---
@@ -1420,11 +1488,11 @@ function setupTeacherInstancedTrucks(count) {
 
   // Fake Shadow 가짜그림자 (2D 판데기)
   const shadowGeo = new THREE.PlaneGeometry(1, 1);
-  const shadowMat = new THREE.MeshBasicMaterial({ 
-    color: 0x000000, 
-    transparent: true, 
-    opacity: 0.3, 
-    depthWrite: false 
+  const shadowMat = new THREE.MeshBasicMaterial({
+    color: 0x000000,
+    transparent: true,
+    opacity: 0.3,
+    depthWrite: false
   });
   instancedFakeShadows = new THREE.InstancedMesh(shadowGeo, shadowMat, count);
   scene.add(instancedFakeShadows);
@@ -1446,7 +1514,7 @@ function setupTeacherInstancedTrucks(count) {
     instancedHood.setColorAt(i, color);
     instancedCab.setColorAt(i, color);
   }
-  
+
   if (instancedChassis.instanceColor) instancedChassis.instanceColor.needsUpdate = true;
   if (instancedHood.instanceColor) instancedHood.instanceColor.needsUpdate = true;
   if (instancedCab.instanceColor) instancedCab.instanceColor.needsUpdate = true;
@@ -1457,7 +1525,7 @@ function setupTeacherInstancedTrucks(count) {
   activeStudents.forEach((student, index) => {
     const tag = document.createElement('div');
     tag.innerText = student.nickname;
-    
+
     // 스타일 주입
     tag.style.position = 'absolute';
     tag.style.transform = 'translate(-50%, -100%)';
@@ -1473,7 +1541,7 @@ function setupTeacherInstancedTrucks(count) {
     tag.style.boxShadow = '0 4px 15px rgba(0,0,0,0.5)';
     tag.style.pointerEvents = 'none';
     tag.style.display = 'none';
-    
+
     if (nameTagsContainer) nameTagsContainer.appendChild(tag);
     studentDomElements[student.id] = tag;
   });
@@ -1496,39 +1564,39 @@ function updateInstancedTrucks() {
   activeStudents.forEach((student, index) => {
     const zPos = studentCarPositions[student.id] !== undefined ? studentCarPositions[student.id] : START_Z;
     const xPos = getLaneX(index, activeStudents.length);
-    
+
     // 1. Chassis
     dummy.position.set(xPos, 0.45, zPos);
     dummy.rotation.set(0, 0, 0);
     dummy.scale.set(1, 1, 1);
     dummy.updateMatrix();
     instancedChassis.setMatrixAt(index, dummy.matrix);
-    
+
     // 2. Hood
     dummy.position.set(xPos, 0.45 + 0.15 + 0.375, zPos + 1.8);
     dummy.rotation.set(0, 0, 0);
     dummy.scale.set(1, 1, 1);
     dummy.updateMatrix();
     instancedHood.setMatrixAt(index, dummy.matrix);
-    
+
     // 3. Cab
     dummy.position.set(xPos, 0.45 + 0.15 + 0.5, zPos + 0.3);
     dummy.rotation.set(0, 0, 0);
     dummy.scale.set(1, 1, 1);
     dummy.updateMatrix();
     instancedCab.setMatrixAt(index, dummy.matrix);
-    
+
     // 4. Wheels
     const distanceTravelled = zPos - START_Z;
     const rotationAngle = distanceTravelled / WHEEL_RADIUS;
-    
+
     const wheelOffsets = [
       { x: -1.15, z: 1.5 },
       { x: 1.15, z: 1.5 },
       { x: -1.15, z: -1.6 },
       { x: 1.15, z: -1.6 }
     ];
-    
+
     wheelOffsets.forEach((offset, wIdx) => {
       dummy.position.set(xPos + offset.x, 0.35, zPos + offset.z);
       dummy.rotation.set(rotationAngle, 0, Math.PI / 2);
@@ -1548,7 +1616,7 @@ function updateInstancedTrucks() {
     const state = studentReadyStates[student.id] || { mass: 1500 };
     const addedWeight = state.mass - 1000;
     const numBoxes = Math.min(16, Math.floor(addedWeight / 250));
-    
+
     const boxSize = 0.45;
     const boxSlots = [];
     for (let layer = 0; layer < 2; layer++) {
@@ -1561,7 +1629,7 @@ function updateInstancedTrucks() {
         }
       }
     }
-    
+
     for (let bIdx = 0; bIdx < 16; bIdx++) {
       if (bIdx < numBoxes) {
         const slot = boxSlots[bIdx];
@@ -1596,30 +1664,30 @@ function updateStudentNameTags() {
     return;
   }
   nameTagsContainer.style.display = 'block';
-  
+
   const widthHalf = renderer.domElement.clientWidth / 2;
   const heightHalf = renderer.domElement.clientHeight / 2;
   const tempV = new THREE.Vector3();
-  
+
   activeStudents.forEach((student, index) => {
     const domEl = studentDomElements[student.id];
     if (!domEl) return;
-    
+
     const zPos = studentCarPositions[student.id] !== undefined ? studentCarPositions[student.id] : START_Z;
     const xPos = getLaneX(index, activeStudents.length);
-    
+
     tempV.set(xPos, 2.8, zPos);
     tempV.project(camera);
-    
+
     // 카메라 뒷쪽에 있는 태그는 숨김
     if (tempV.z > 1) {
       domEl.style.display = 'none';
       return;
     }
-    
+
     const x = (tempV.x * widthHalf) + widthHalf;
     const y = -(tempV.y * heightHalf) + heightHalf;
-    
+
     domEl.style.display = 'block';
     domEl.style.left = `${x}px`;
     domEl.style.top = `${y}px`;
@@ -1642,10 +1710,10 @@ function createPickupTruck() {
 
   // 2. 엔진 보닛 (앞코)
   const hoodGeo = new THREE.BoxGeometry(2.1, 0.75, 1.4);
-  const bodyPaintMat = new THREE.MeshStandardMaterial({ 
+  const bodyPaintMat = new THREE.MeshStandardMaterial({
     color: 0x00a8ff, // 메탈릭 브라이트 블루
-    metalness: 0.8, 
-    roughness: 0.2 
+    metalness: 0.8,
+    roughness: 0.2
   });
   const hood = new THREE.Mesh(hoodGeo, bodyPaintMat);
   hood.position.set(0, 0.45 + 0.15 + 0.375, 1.8);
@@ -1663,7 +1731,7 @@ function createPickupTruck() {
 
   // 유리창 (유광 블랙 검정색 바)
   const glassMat = new THREE.MeshStandardMaterial({ color: 0x0d0f12, roughness: 0.1, metalness: 0.9 });
-  
+
   // 앞 유리창 (살짝 기울어짐 연출을 위해 전면에 플레이트 삽입)
   const frontWindshield = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.7), glassMat);
   frontWindshield.position.set(0, 1.2, 1.21);
@@ -1698,10 +1766,10 @@ function createPickupTruck() {
   arrowShape.closePath();
 
   const arrowGeo = new THREE.ShapeGeometry(arrowShape);
-  const arrowMat = new THREE.MeshStandardMaterial({ 
+  const arrowMat = new THREE.MeshStandardMaterial({
     color: 0xffd600, // 선명한 노란색
-    roughness: 0.4, 
-    metalness: 0.1 
+    roughness: 0.4,
+    metalness: 0.1
   });
 
   // 우측 도어 화살표 (앞코 우측 - 지면 정렬선)
@@ -1726,7 +1794,7 @@ function createPickupTruck() {
   // 헤드라이트 (발광 옐로우)
   const headlightGeo = new THREE.BoxGeometry(0.3, 0.2, 0.05);
   const headlightMat = new THREE.MeshBasicMaterial({ color: 0xfffacd });
-  
+
   const leftHeadlight = new THREE.Mesh(headlightGeo, headlightMat);
   leftHeadlight.position.set(-0.85, 0.9, 2.53);
   truckGroup.add(leftHeadlight);
@@ -1737,7 +1805,7 @@ function createPickupTruck() {
 
   // 5. 트럭 적재함 (Cargo Bed) 울타리 형태
   const bedWallMat = bodyPaintMat;
-  
+
   // 바닥판
   const bedFloor = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.1, 2.6), new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.7 }));
   bedFloor.position.set(0, 0.65, -1.9);
@@ -1768,12 +1836,12 @@ function createPickupTruck() {
   // 6. 후미 브레이크등 (Brake Lights)
   const brakeLightGeo = new THREE.BoxGeometry(0.2, 0.25, 0.05);
   // 초기 상태는 어두운 붉은색
-  const initialBrakeLightMat = new THREE.MeshStandardMaterial({ 
-    color: 0x3a0000, 
+  const initialBrakeLightMat = new THREE.MeshStandardMaterial({
+    color: 0x3a0000,
     emissive: 0x000000,
-    roughness: 0.3 
+    roughness: 0.3
   });
-  
+
   leftBrakeLight = new THREE.Mesh(brakeLightGeo, initialBrakeLightMat.clone());
   leftBrakeLight.position.set(-0.85, 0.95, -3.26);
   truckGroup.add(leftBrakeLight);
@@ -1836,7 +1904,7 @@ function createPickupTruck() {
 // --- 질량 값에 따른 적재함 상자들 실시간 구성 ---
 function updateCargoBoxes(currentMass) {
   // 기존 적재함 짐 싹 비우기
-  while(cargoGroup.children.length > 0){
+  while (cargoGroup.children.length > 0) {
     const obj = cargoGroup.children[0];
     cargoGroup.remove(obj);
   }
@@ -1848,11 +1916,11 @@ function updateCargoBoxes(currentMass) {
 
   const boxSize = 0.45;
   const boxGeo = new THREE.BoxGeometry(boxSize, boxSize, boxSize);
-  const boxMat = new THREE.MeshStandardMaterial({ 
+  const boxMat = new THREE.MeshStandardMaterial({
     color: 0xcd853f, // 카드보드 갈색
-    roughness: 0.9 
+    roughness: 0.9
   });
-  
+
   // 포장 테이프 데코레이션용 얇은 박스
   const tapeMat = new THREE.MeshStandardMaterial({ color: 0xdeb887, roughness: 0.7 });
   const tapeGeo = new THREE.BoxGeometry(0.08, 0.01, boxSize + 0.01);
@@ -1860,7 +1928,7 @@ function updateCargoBoxes(currentMass) {
   // 최대 16개 박스를 적재함에 쌓을 3차원 슬롯 배정
   // 1층에 최대 8개 (Z: 4열 x X: 2열), 2층에 최대 8개
   const boxSlots = [];
-  
+
   // 1층 슬롯 (Y = boxSize / 2)
   for (let layer = 0; layer < 2; layer++) {
     const yOffset = (boxSize / 2) + layer * (boxSize + 0.02);
@@ -1930,7 +1998,7 @@ function setBrakeLightsActive(active) {
 // --- 카메라 기본 위치 리셋 ---
 function resetCamera() {
   truckGroup.position.set(0, 0, START_Z);
-  
+
   // 3/4 뒷모습 오프셋 적용
   camera.position.copy(truckGroup.position).add(offsetRear);
   controls.enabled = true;
@@ -1945,21 +2013,21 @@ function generateNewChallenge() {
 
   // 25m에서 95m 사이의 임의 정수 생성
   targetDistance = Math.floor(Math.random() * (95 - 25 + 1)) + 25;
-  
+
   // 빨간 목표선 Z 위치 업데이트
-  redLineMesh.position.z = targetDistance;
-  redLineSignpost.position.set(10 / 2 + 1.5, 0, targetDistance);
-  
+  if (redLineMesh) redLineMesh.position.z = targetDistance;
+  if (redLineSignpost) redLineSignpost.position.set(10 / 2 + 1.5, 0, targetDistance);
+
   // 도로 위 노면 글씨 Z 위치 업데이트 (목표 선 직전 배치)
   if (roadText) {
-    roadText.position.z = targetDistance - 20;
+    roadText.position.z = targetDistance - 18.4;
   }
-  
-  document.getElementById('target-distance-value').innerText = targetDistance.toFixed(1);
-  
+
+  safeSetText('target-distance-value', targetDistance.toFixed(1));
+
   // 반투명 목표 거리 모달 팝업 띄우기
   showTargetModal(targetDistance);
-  
+
   resetSimulation();
 }
 
@@ -1991,12 +2059,12 @@ function showResultModal(actualDist, targetDist, diff, absDiff) {
   const modalActual = document.getElementById('modal-actual-dist');
   const modalTarget = document.getElementById('modal-target-dist-result');
   const modalFeedback = document.getElementById('modal-result-feedback');
-  
+
   if (!modal) return;
-  
+
   modalActual.innerText = `${actualDist.toFixed(2)}m`;
   modalTarget.innerText = `${targetDist.toFixed(1)}m`;
-  
+
   if (absDiff <= 0.6) {
     modalFeedback.className = 'result-feedback-box success';
     modalTitle.innerText = '🎯 미션 성공!';
@@ -2011,7 +2079,7 @@ function showResultModal(actualDist, targetDist, diff, absDiff) {
       modalFeedback.innerHTML = `목표 정지선에 <strong>${Math.abs(diff).toFixed(2)}m 모자라게 멈췄습니다</strong>.`;
     }
   }
-  
+
   modal.style.display = 'flex';
 }
 
@@ -2078,7 +2146,7 @@ function updateDashboard(currentSpeedValKmh) {
   const badge = document.getElementById('status-badge');
   if (badge) {
     badge.className = 'status-badge'; // 기본 클래스 리셋
-    
+
     if (simulationState === 'idle') {
       badge.innerText = '대기 중';
       badge.classList.add('state-idle');
@@ -2134,10 +2202,10 @@ function startSimulation() {
 function resetSimulation() {
   simulationState = 'idle';
   currentSpeedMps = 0;
-  
+
   // 결과 안내 모달 팝업 닫기
   closeResultModal();
-  
+
   // 브레이크등 라이트 소등
   setBrakeLightsActive(false);
 
@@ -2237,7 +2305,7 @@ function update() {
       // 위치 보간 (컨트롤 락 된 상태이므로 수동 세팅)
       const currentOffset = new THREE.Vector3().lerpVectors(offsetRear, offsetSide, eased);
       camera.position.copy(truckGroup.position).add(currentOffset);
-      
+
       // 카메라는 차량 중앙 높이를 쳐다봄
       const targetLook = truckGroup.position.clone().add(new THREE.Vector3(0, 0.8, 1.5));
       camera.lookAt(targetLook);
@@ -2249,7 +2317,7 @@ function update() {
         setBrakeLightsActive(true);
         updateDashboard();
       }
-    } 
+    }
     else if (simulationState === 'braking') {
       // 제동 페이즈: F = m * a  => a = F_brake / m
       const deceleration = F_BRAKE / mass;
@@ -2260,7 +2328,7 @@ function update() {
 
       if (t >= stopTime) {
         // 완전히 멈춤 (앞 범퍼 기준의 위치 산정)
-        truckGroup.position.z = (Math.pow(initialSpeedMps, 2) / (2 * deceleration)) - 2.5; 
+        truckGroup.position.z = (Math.pow(initialSpeedMps, 2) / (2 * deceleration)) - 2.5;
         currentSpeedMps = 0;
         simulationState = 'stopped';
         showResults();
@@ -2275,7 +2343,7 @@ function update() {
 
         // 대시보드 실시간 거리 갱신 (제동 거리는 앞 범퍼 위치 Z + 2.5)
         safeSetText('actual-distance-value', (truckGroup.position.z + 2.5).toFixed(2));
-        
+
         // 실시간 속도 기준으로 대시보드 에너지 갱신
         const currentKmh = currentSpeedMps * 3.6;
         updateDashboard(currentKmh);
@@ -2283,7 +2351,7 @@ function update() {
 
       // 제동 구간에서는 계속 고정된 카메라 Side view 유지하며 차량 추적
       camera.position.copy(truckGroup.position).add(offsetSide);
-      
+
       // 타겟 지점도 부드럽게 추종
       const targetLook = truckGroup.position.clone().add(new THREE.Vector3(0, 0.8, 1.5));
       camera.lookAt(targetLook);
@@ -2292,7 +2360,7 @@ function update() {
       if (simulationState === 'braking') {
         brakePointLight.position.set(0, 0.8, truckGroup.position.z - 3.3);
       }
-    } 
+    }
     else {
       // IDLE 이나 STOPPED 상태에서는 사용자가 자유롭게 카메라 회전 및 탐색을 즐기게끔 controls만 주기적으로 업데이트
       controls.update();
@@ -2334,7 +2402,7 @@ function updateTeacherPhysics(dt) {
     if (curState === 'driving') {
       allStopped = false;
       curZ += initialSpeedMps * dt;
-      
+
       if (curZ + 2.5 >= BRAKE_Z) {
         curZ = BRAKE_Z - 2.5;
         curState = 'braking';
@@ -2404,7 +2472,7 @@ function updateTeacherPhysics(dt) {
     if (activeEl) activeEl.style.display = 'none';
     const lbSection = document.getElementById('teacher-leaderboard-section');
     if (lbSection) lbSection.style.display = 'flex';
-    
+
     controls.enabled = true;
     controls.target.set(0, 1.5, avgZ);
     controls.update();

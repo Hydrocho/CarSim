@@ -74,9 +74,9 @@
           <div class="slider-wrapper">
             <input type="range" id="teacher-target-distance" min="25" max="95" step="1" value="45" oninput="updateTeacherTargetDist(this.value)">
             <div class="slider-ticks">
-              <span>25m</span>
+              <span id="teacher-target-min-label">25m</span>
               <span id="teacher-target-val-label" class="highlight">45m</span>
-              <span>95m</span>
+              <span id="teacher-target-max-label">95m</span>
             </div>
           </div>
         </div>
@@ -260,6 +260,10 @@
         <div class="metric-item">
           <span class="label">목표 제동 거리</span>
           <span class="value" id="student-target-dist-result">0.00m</span>
+        </div>
+        <div class="metric-item">
+          <span class="label">오차 (Error)</span>
+          <span class="value" id="student-offset-dist">0.00m</span>
         </div>
       </div>
       <div id="student-result-feedback" class="result-feedback-box">

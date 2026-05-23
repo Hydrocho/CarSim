@@ -696,7 +696,7 @@ input[type=range]:active::-webkit-slider-thumb {
 /* Result Modal Layout & Metrics styling */
 .result-metrics {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 16px;
   margin: 20px 0;
 }

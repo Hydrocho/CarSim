@@ -631,9 +631,8 @@ window.selectRole = selectRole;
 
 // --- 교사용 세션 생성 및 초기화 ---
 async function initTeacherSession() {
-  // 6자리 임의의 PIN 번호 생성
-  sessionPin = Math.floor(100000 + Math.random() * 900000).toString();
-  document.getElementById('teacher-pin-value').innerText = sessionPin;
+  const DEFAULT_PIN = "802935";
+  sessionPin = DEFAULT_PIN;
 
   if (!supabaseClient) {
     alert("수파베이스가 연결되지 않았습니다. app.js에서 SUPABASE_URL 및 SUPABASE_ANON_KEY를 설정해 주세요.");
@@ -641,7 +640,14 @@ async function initTeacherSession() {
   }
 
   try {
-    // 1. DB에 세션 저장 (status: LOBBY)
+    // 1. 기존 동일 고정 PIN의 세션 삭제 (중복 오류 예방 및 데이터 초기 청소)
+    // 외래 키 ON DELETE CASCADE 설정으로 인해 results 테이블 데이터도 연쇄 삭제됩니다.
+    await supabaseClient
+      .from('sessions')
+      .delete()
+      .eq('pin_code', DEFAULT_PIN);
+
+    // 2. 기본 고정 PIN으로 새 세션 등록 시도 (status: LOBBY)
     const { error } = await supabaseClient
       .from('sessions')
       .insert([{
@@ -651,9 +657,24 @@ async function initTeacherSession() {
         status: 'LOBBY'
       }]);
 
-    if (error) throw error;
+    if (error) {
+      console.warn("기본 핀코드('802935') 등록 중복 또는 에러로 난수 핀코드로 우회합니다:", error);
+      // Fallback: 6자리 난수 PIN 번호 생성
+      sessionPin = Math.floor(100000 + Math.random() * 900000).toString();
+      const fallbackRes = await supabaseClient
+        .from('sessions')
+        .insert([{
+          pin_code: sessionPin,
+          target_distance: targetDistance,
+          control_mode: 'BOTH',
+          status: 'LOBBY'
+        }]);
+      if (fallbackRes.error) throw fallbackRes.error;
+    }
 
-    // 2. 실시간 채널 구독 및 Presence 연결
+    document.getElementById('teacher-pin-value').innerText = sessionPin;
+
+    // 3. 실시간 채널 구독 및 Presence 연결
     setupTeacherRealtime();
 
     // 초기 제어 모드 설정 및 슬라이더 가동 범위 초기 세팅

@@ -87,7 +87,7 @@ let environmentGroup; // 환경 전체 메쉬를 담는 그룹 (다차선 재빌
 // 실시간 멀티플레이어 상태 변수
 let userRole = null;          // 'teacher' | 'student' | null
 let isMultiplayer = false;
-let sessionPin = '';
+let sessionPin = '802935';    // ⚠️ 특징: 교실 실습의 원활한 연결을 위해 고정 PIN 번호 "802935"를 강제 사용합니다.
 let myNickname = '';
 let myStudentId = null;
 let students = [];            // 대기실에 들어온 학생 리스트 [{ id, nickname, is_ready }]
@@ -658,18 +658,10 @@ async function initTeacherSession() {
       }]);
 
     if (error) {
-      console.warn("기본 핀코드('802935') 등록 중복 또는 에러로 난수 핀코드로 우회합니다:", error);
-      // Fallback: 6자리 난수 PIN 번호 생성
-      sessionPin = Math.floor(100000 + Math.random() * 900000).toString();
-      const fallbackRes = await supabaseClient
-        .from('sessions')
-        .insert([{
-          pin_code: sessionPin,
-          target_distance: targetDistance,
-          control_mode: 'BOTH',
-          status: 'LOBBY'
-        }]);
-      if (fallbackRes.error) throw fallbackRes.error;
+      // ⚠️ 특징: 난수 핀코드 자동 우회 로직을 비활성화하고,
+      // 멀티플레이어 환경의 일관성을 위해 세션 생성이 실패하더라도 항상 고정 핀코드("802935")를 강제 사용합니다.
+      console.warn("기본 핀코드('802935') 등록 실패 (이미 존재하거나 DB 에러):", error);
+      sessionPin = DEFAULT_PIN;
     }
 
     document.getElementById('teacher-pin-value').innerText = sessionPin;
@@ -1023,13 +1015,14 @@ function joinSession() {
   const pinInput = document.getElementById('student-pin');
   const nickInput = document.getElementById('student-nickname');
 
-  sessionPin = pinInput.value.trim();
+  // ⚠️ 특징: 학생들이 실수로 다른 번호를 입력하더라도 교실 실습의 원활한 연결을 위해
+  // 입력값과 상관없이 핀 번호를 항상 고정 핀인 "802935"로 강제 매핑합니다.
+  sessionPin = "802935";
+  if (pinInput) {
+    pinInput.value = sessionPin;
+  }
   myNickname = nickInput.value.trim();
 
-  if (sessionPin.length !== 6) {
-    alert("접속 PIN 번호 6자리를 정확히 입력해 주세요.");
-    return;
-  }
   if (!myNickname) {
     alert("이름을 입력해 주세요.");
     return;

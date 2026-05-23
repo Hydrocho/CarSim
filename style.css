@@ -756,3 +756,390 @@ input[type=range]:active::-webkit-slider-thumb {
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
+
+/* ==========================================================================
+   Multiplayer Real-time Extension Styles
+   ========================================================================== */
+
+/* Fullscreen Overlay for Role Selection and Login */
+.role-overlay {
+  background: rgba(10, 14, 23, 0.98) !important; /* 초반 3D 로딩 차단 및 어두운 분위기 유치 */
+  pointer-events: auto !important;
+}
+
+.role-card {
+  width: 480px !important;
+  border: 1px solid rgba(0, 229, 255, 0.15) !important;
+  box-shadow: 0 25px 60px rgba(0, 229, 255, 0.15) !important;
+}
+
+.subtitle {
+  font-size: 0.9rem;
+  color: #94a3b8;
+  margin-bottom: 24px;
+}
+
+.role-buttons {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.role-buttons .btn {
+  padding: 16px 24px;
+  font-size: 1.05rem;
+}
+
+/* Login Card for Student PIN Access */
+.login-card {
+  width: 380px !important;
+  pointer-events: auto !important;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  text-align: left;
+  margin-top: 16px;
+}
+
+.login-form label {
+  font-size: 0.82rem;
+  color: #94a3b8;
+  font-weight: 500;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.login-form input[type="text"] {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 600;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.login-form input[type="text"]:focus {
+  border-color: #00e5ff;
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.25);
+}
+
+/* PIN Display Card (Teacher Lobby) */
+.pin-display-card {
+  background: linear-gradient(135deg, rgba(0, 229, 255, 0.08) 0%, rgba(0, 134, 255, 0.08) 100%);
+  border: 1px solid rgba(0, 229, 255, 0.2);
+  border-radius: 16px;
+  padding: 18px;
+  text-align: center;
+  margin-bottom: 8px;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+}
+
+.pin-display-card .pin-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #8fa0ba;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.pin-display-card .pin-value {
+  font-size: 2.6rem;
+  font-weight: 900;
+  color: #00e5ff;
+  letter-spacing: 3px;
+  text-shadow: 0 0 15px rgba(0, 229, 255, 0.3);
+}
+
+/* Student Mode Guide */
+.mode-guide-desc {
+  font-size: 0.72rem;
+  color: #8fa0ba;
+  margin-top: 6px;
+  line-height: 1.3;
+}
+
+/* Student Connected List (Grid Layout) */
+.student-grid-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.student-grid-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.student-grid-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+.empty-list-msg {
+  font-size: 0.78rem;
+  color: #64748b;
+  width: 100%;
+  text-align: center;
+  padding: 24px 0;
+}
+
+.student-tag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #cbd5e1;
+  transition: all 0.2s;
+  animation: pop-in 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.student-tag.ready {
+  background: rgba(76, 175, 80, 0.12);
+  border-color: rgba(76, 175, 80, 0.3);
+  color: #a5d6a7;
+}
+
+.student-tag .status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #64748b;
+}
+
+.student-tag.ready .status-dot {
+  background: #4caf50;
+  box-shadow: 0 0 6px #4caf50;
+}
+
+@keyframes pop-in {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* Active Session Banner */
+.session-status-banner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.session-status-banner .status-metric {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.session-status-banner .status-metric .label {
+  font-size: 0.7rem;
+  color: #8fa0ba;
+  margin-bottom: 2px;
+}
+
+.session-status-banner .status-metric .val {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.progress-card {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.action-buttons-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Leaderboard Tables */
+.leaderboard-container {
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.leaderboard-container::-webkit-scrollbar {
+  width: 4px;
+}
+
+.leaderboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.leaderboard-table th, .leaderboard-table td {
+  padding: 10px 12px;
+  font-size: 0.76rem;
+}
+
+.leaderboard-table th {
+  background: rgba(18, 22, 33, 0.95);
+  font-weight: 700;
+  color: #8fa0ba;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.leaderboard-table tbody tr {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.leaderboard-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.leaderboard-table tbody tr.rank-1 {
+  background: rgba(255, 193, 7, 0.05);
+  color: #ffe082;
+}
+
+.leaderboard-table tbody tr.rank-2 {
+  background: rgba(208, 208, 208, 0.04);
+  color: #e0e0e0;
+}
+
+.leaderboard-table tbody tr.rank-3 {
+  background: rgba(205, 127, 50, 0.04);
+  color: #ffcc80;
+}
+
+.leaderboard-table .badge-cell {
+  font-weight: 800;
+  text-align: center;
+}
+
+/* Student Control Locking */
+.control-group.locked {
+  opacity: 0.45;
+  pointer-events: none;
+  position: relative;
+}
+
+.control-group.locked::after {
+  content: '🔒 고정값';
+  position: absolute;
+  top: 8px;
+  right: 14px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #ff9100;
+  background: rgba(255, 145, 0, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 145, 0, 0.2);
+}
+
+/* Waiting / Loading Spinner state */
+.waiting-card {
+  padding: 40px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  text-align: center;
+}
+
+.waiting-card p {
+  font-size: 0.85rem;
+  color: #cbd5e1;
+  line-height: 1.5;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 255, 255, 0.08);
+  border-top-color: #00e5ff;
+  border-radius: 50%;
+  animation: spin 1s infinite linear;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Student Target Display */
+.target-card {
+  background: rgba(255, 23, 68, 0.04);
+  border: 1px solid rgba(255, 23, 68, 0.12);
+  border-radius: 16px;
+  padding: 16px;
+  text-align: center;
+}
+
+.target-card .label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #ef9a9a;
+  margin-bottom: 2px;
+}
+
+.target-card .value {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #ff1744;
+  text-shadow: 0 0 10px rgba(255, 23, 68, 0.2);
+}
+
+.target-card .hint-text {
+  font-size: 0.72rem;
+  color: #8fa0ba;
+  margin-top: 4px;
+  border-top: 1px solid rgba(255, 23, 68, 0.08);
+  padding-top: 4px;
+}
+
+.student-status-toast {
+  background: rgba(0, 229, 255, 0.08);
+  border: 1px solid rgba(0, 229, 255, 0.2);
+  color: #80deea;
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+  animation: pulse-border 1.5s infinite;
+}
+
+@keyframes pulse-border {
+  0% { border-color: rgba(0, 229, 255, 0.2); }
+  50% { border-color: rgba(0, 229, 255, 0.5); }
+  100% { border-color: rgba(0, 229, 255, 0.2); }
+}
+

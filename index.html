@@ -79,6 +79,9 @@
               <span id="teacher-target-max-label">95m</span>
             </div>
           </div>
+          <div id="teacher-range-guide" class="mode-guide-desc" style="color: #00e5ff; font-weight: 600; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 6px;">
+            도달 가능 범위: 25.0m ~ 95.0m
+          </div>
         </div>
 
         <div class="control-group">
@@ -228,6 +231,15 @@
           </div>
           <div class="energy-bar-bg">
             <div id="energy-bar" class="energy-bar-fill" style="width: 25%;"></div>
+          </div>
+        </div>
+
+        <!-- 실시간 예상 제동 거리 정보 -->
+        <div class="metric-card braking-pred-card" style="border: 1px solid rgba(0, 229, 255, 0.15); background: rgba(0, 229, 255, 0.03); margin-top: 12px; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 6px;">
+          <span class="metric-label" style="font-size: 0.75rem; color: #80deea; font-weight: 500;">현재 설정 기준 예상 제동 거리</span>
+          <div class="metric-value-container" style="display: flex; align-items: baseline; justify-content: center; gap: 2px;">
+            <span id="predicted-distance-value" class="metric-value" style="font-size: 2rem; font-weight: 800; color: #00e5ff; text-shadow: 0 0 10px rgba(0, 229, 255, 0.2);">18.8</span>
+            <span class="metric-unit" style="font-size: 1rem; color: #00e5ff; font-weight: 600;">m</span>
           </div>
         </div>
 

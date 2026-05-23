@@ -783,6 +783,11 @@ function updateTeacherTargetSliderRange(mode) {
   if (minLabel) minLabel.innerText = `${minVal.toFixed(1)}m`;
   if (maxLabel) maxLabel.innerText = `${maxVal.toFixed(1)}m`;
 
+  const rangeGuide = document.getElementById('teacher-range-guide');
+  if (rangeGuide) {
+    rangeGuide.innerText = `도달 가능 범위: ${minVal.toFixed(1)}m ~ ${maxVal.toFixed(1)}m`;
+  }
+
   // 현재 설정된 targetDistance가 새로운 범위를 벗어날 경우 클램핑
   if (targetDistance < minVal) {
     targetDistance = minVal;
@@ -2161,6 +2166,10 @@ function updateDashboard(currentSpeedValKmh) {
       badge.classList.add('state-stopped');
     }
   }
+
+  // 실시간 예상 제동 거리 계산 및 반영
+  const predDist = (mass * Math.pow(displaySpeed, 2)) / 200000;
+  safeSetText('predicted-distance-value', predDist.toFixed(1));
 }
 
 // --- 이징(Easing) 함수: 부드러운 카메라 전환용 ---

@@ -1912,3 +1912,27 @@ input[type=range]:active::-webkit-slider-thumb {
   color: #ff4d6d;
   background: rgba(255, 77, 109, 0.12);
 }
+
+/* 역할 선택 오버레이 내 우측 상단 교사 로그인 링크 스타일 */
+.teacher-login-link-btn {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  z-index: 1001;
+  background: transparent;
+  border: none;
+  color: #475569; /* 눈에 잘 띄지 않는 흐린 회색 */
+  font-size: 0.72rem; /* 아주 작게 설정 */
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.teacher-login-link-btn:hover {
+  color: #94a3b8; /* 호버 시에만 조금 밝아짐 */
+  background: rgba(255, 255, 255, 0.04);
+}

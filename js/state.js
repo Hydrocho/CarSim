@@ -21,6 +21,7 @@ export const State = {
   redLineSignpost: null,
   roadText: null,
   signboardMarkers: [],
+  sunLight: null,
   environmentGroup: null,
 
   // 멀티플레이어 연결 상태

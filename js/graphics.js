@@ -42,6 +42,7 @@ export function initScene(container) {
   sunLight.shadow.mapSize.set(1024, 1024); // 성능 최적화: 그림자 맵 해상도 1024로 하향
   sunLight.shadow.camera.near = 0.5;
   sunLight.shadow.camera.far = 150;
+  State.sunLight = sunLight; // 레퍼런스 저장
 
   // 그림자 영역 조절 (픽업 트럭 이동 경로 커버)
   const d = 40;
@@ -280,6 +281,17 @@ function createInstancedTrees(currentRoadWidth = 10) {
  * @param {number} numLanes 차선 수
  */
 export function rebuildEnvironment(numLanes = 1) {
+  // 교사용 화면 최적화: 그림자 비활성화로 렌더링 오버헤드 감소
+  if (State.renderer) {
+    if (State.userRole === 'teacher') {
+      State.renderer.shadowMap.enabled = false;
+      if (State.sunLight) State.sunLight.castShadow = false;
+    } else {
+      State.renderer.shadowMap.enabled = true;
+      if (State.sunLight) State.sunLight.castShadow = true;
+    }
+  }
+
   if (State.environmentGroup) {
     while (State.environmentGroup.children.length > 0) {
       const obj = State.environmentGroup.children[0];
@@ -421,12 +433,15 @@ export function rebuildEnvironment(numLanes = 1) {
     State.signboardMarkers.push({ mesh: sign, distance: d });
   }
 
-  // 7. 가로등 배치
-  for (let z = -30; z <= 240; z += 40) {
-    createStreetLight(roadWidth / 2 + 0.8, z, false);
-    createStreetLight(-roadWidth / 2 - 0.8, z + 20, true);
-  }
+  // 교사용 화면 최적화: 불필요한 가로등 및 나무 미배치로 드로우콜 최소화
+  if (State.userRole !== 'teacher') {
+    // 7. 가로등 배치
+    for (let z = -30; z <= 240; z += 40) {
+      createStreetLight(roadWidth / 2 + 0.8, z, false);
+      createStreetLight(-roadWidth / 2 - 0.8, z + 20, true);
+    }
 
-  // 8. 나무 배치
-  createInstancedTrees(roadWidth);
+    // 8. 나무 배치
+    createInstancedTrees(roadWidth);
+  }
 }

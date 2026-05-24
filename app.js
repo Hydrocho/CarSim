@@ -470,6 +470,7 @@ function selectRole(role) {
     initTeacherSession();
     toggleCameraPanel(false);
     resetTeacherCamera();
+    safeSetStyleDisplay('teacher-large-lobby-panel', 'flex');
   } else {
     safeSetStyleDisplay('teacher-panel', 'none');
     safeSetStyleDisplay('student-panel', 'flex');
@@ -500,6 +501,7 @@ async function initTeacherSession() {
     }
 
     safeSetText('teacher-pin-value', State.sessionPin);
+    safeSetText('large-lobby-pin-value', State.sessionPin);
     setupTeacherRealtime();
     setControlMode('BOTH');
 
@@ -637,6 +639,7 @@ async function lockSessionSettings() {
 
   safeSetStyleDisplay('teacher-lobby', 'none');
   safeSetStyleDisplay('teacher-active', 'flex');
+  safeSetStyleDisplay('teacher-large-lobby-panel', 'none');
 
   safeSetText('active-target-dist', `${State.targetDistance}m`);
   
@@ -684,6 +687,7 @@ async function lockSessionSettings() {
 async function unlockSessionSettings() {
   safeSetStyleDisplay('teacher-active', 'none');
   safeSetStyleDisplay('teacher-lobby', 'flex');
+  safeSetStyleDisplay('teacher-large-lobby-panel', 'flex');
   toggleCameraPanel(false);
   resetTeacherCamera();
 
@@ -700,6 +704,25 @@ async function unlockSessionSettings() {
     realtimeChannel.send({
       type: 'broadcast',
       event: 'unlock-settings'
+    });
+  }
+}
+
+// --- 교사: 특정 학생 퇴장 처리 ---
+function kickStudent(studentId, nickname) {
+  if (!confirm(`'${nickname}' 학생을 퇴장시키겠습니까?`)) return;
+
+  // 로컬 State에서 즉시 제거
+  State.students = State.students.filter(s => s.id !== studentId);
+  delete State.studentReadyStates[studentId];
+  updateStudentLobbyUI();
+
+  // 해당 학생에게 퇴장 신호 브로드캐스트
+  if (isConnected() && realtimeChannel) {
+    realtimeChannel.send({
+      type: 'broadcast',
+      event: 'kick-student',
+      payload: { targetId: studentId }
     });
   }
 }
@@ -825,6 +848,11 @@ function setupStudentRealtime() {
     .on('broadcast', { event: 'next-round' }, () => {
       onNextRoundTriggered();
     })
+    .on('broadcast', { event: 'kick-student' }, ({ payload }) => {
+      if (payload.targetId === State.myStudentId) {
+        onKicked();
+      }
+    })
     .subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
         State.myStudentId = 'student_' + Math.random().toString(36).substring(2, 9);
@@ -846,6 +874,37 @@ function setupStudentRealtime() {
 function showStudentLobbyWait() {
   safeSetStyleDisplay('student-wait-message', 'flex');
   safeSetStyleDisplay('student-dashboard', 'none');
+}
+
+// --- 학생: 교사에 의해 퇴장 처리 ---
+function onKicked() {
+  // 채널 언트랙 및 연결 해제
+  if (realtimeChannel) {
+    realtimeChannel.untrack();
+    supabaseClient.removeChannel(realtimeChannel);
+    realtimeChannel = null;
+  }
+  // 현재 표시 중인 모든 학생 UI 숨기기
+  safeSetStyleDisplay('student-wait-message', 'none');
+  safeSetStyleDisplay('student-dashboard', 'none');
+  safeSetStyleDisplay('student-result-modal', 'none');
+  // 퇴장 오버레이 표시
+  const overlay = document.getElementById('kicked-overlay');
+  if (overlay) overlay.style.display = 'flex';
+}
+
+// --- 학생: 퇴장 후 다시 접속 화면으로 ---
+function returnToLogin() {
+  const overlay = document.getElementById('kicked-overlay');
+  if (overlay) overlay.style.display = 'none';
+  // 닉네임 초기화
+  State.myNickname = '';
+  State.myStudentId = null;
+  State.simulationState = 'idle';
+  const nickInput = document.getElementById('student-nickname');
+  if (nickInput) nickInput.value = '';
+  // 로그인 화면 재노출
+  safeSetStyleDisplay('student-login-overlay', 'flex');
 }
 
 function onTeacherLockSettings(config) {
@@ -1137,6 +1196,7 @@ function addStudentResult(res) {
 async function resetForNextRound() {
   safeSetStyleDisplay('teacher-leaderboard-section', 'none');
   safeSetStyleDisplay('teacher-lobby', 'flex');
+  safeSetStyleDisplay('teacher-large-lobby-panel', 'flex');
   toggleCameraPanel(false);
   resetTeacherCamera();
 
@@ -1244,6 +1304,8 @@ window.toggleCameraPanel = toggleCameraPanel;
 window.updateLiveCameraSetting = updateLiveCameraSetting;
 window.saveCameraSettings = saveCameraSettings;
 window.restoreDefaultCameraSettings = restoreDefaultCameraSettings;
+window.kickStudent = kickStudent;
+window.returnToLogin = returnToLogin;
 
 // --- 앱 로드 시작 ---
 window.onload = () => {

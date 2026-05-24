@@ -176,6 +176,31 @@
       </div>
     </section>
 
+    <!-- 교사용 중앙 대형 대기실 패널 -->
+    <section id="teacher-large-lobby-panel" class="large-lobby-panel panel" style="display: none;">
+
+      <!-- 단일 컴팩트 헤더 행 -->
+      <div class="lobby-compact-header">
+        <div class="lobby-compact-title">
+          <span class="pulse-green-dot"></span>
+          <span class="lobby-compact-name">🔬 실험실 대기실</span>
+          <span class="lobby-compact-count">
+            참여 <span id="large-connected-count" class="counter-highlight">0</span>명
+          </span>
+        </div>
+        <div class="lobby-pin-inline">
+          <span class="pin-inline-lbl">PIN</span>
+          <span id="large-lobby-pin-value" class="pin-inline-val">------</span>
+        </div>
+      </div>
+
+      <!-- 학생 목록 (나머지 공간 전부 차지) -->
+      <div id="large-student-list-container" class="large-student-grid-list">
+        <p class="large-empty-list-msg">학생들의 접속을 기다리고 있습니다...</p>
+      </div>
+
+    </section>
+
     <!-- 학생 설정 및 대시보드 패널 -->
     <section id="student-panel" class="control-panel panel" style="display: none;">
       <h2>실험 대시보드</h2>
@@ -327,6 +352,17 @@
     </div>
   </div>
 
+  <!-- 학생 퇴장(강제 종료) 오버레이 -->
+  <div id="kicked-overlay" style="display: none;">
+    <div class="kicked-card">
+      <div class="kicked-icon">🚫</div>
+      <h2>세션에서 퇴장되었습니다</h2>
+      <p>교사가 해당 접속을 종료했습니다.<br>닉네임을 확인한 후 다시 접속해 주세요.</p>
+      <button class="btn btn-primary" onclick="returnToLogin()">↩ 다시 접속하기</button>
+    </div>
+  </div>
+
   <script type="module" src="app.js"></script>
 </body>
 </html>
+

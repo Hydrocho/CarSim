@@ -149,17 +149,69 @@ export function updateStudentLobbyUI() {
 
   if (State.students.length === 0) {
     container.innerHTML = '<p class="empty-list-msg">학생 접속 대기 중...</p>';
-    return;
+  } else {
+    State.students.forEach(student => {
+      const isReady = State.studentReadyStates[student.id]?.isReady || false;
+      const tag = document.createElement('div');
+      tag.className = `student-tag ${isReady ? 'ready' : ''}`;
+      tag.innerHTML = `<span class="status-dot"></span>${student.nickname}`;
+      container.appendChild(tag);
+    });
   }
 
-  State.students.forEach(student => {
-    const isReady = State.studentReadyStates[student.id]?.isReady || false;
-    const tag = document.createElement('div');
-    tag.className = `student-tag ${isReady ? 'ready' : ''}`;
-    tag.innerHTML = `<span class="status-dot"></span>${student.nickname}`;
-    container.appendChild(tag);
-  });
+  // 대형 대기실 패널: 콤팩트 행 목록 (이름 + X 퇴장 버튼)
+  const largeContainer = document.getElementById('large-student-list-container');
+  const largeCountSpan = document.getElementById('large-connected-count');
+  if (largeContainer) {
+    largeContainer.innerHTML = '';
+    if (largeCountSpan) largeCountSpan.innerText = State.students.length;
+
+    if (State.students.length === 0) {
+      largeContainer.innerHTML = '<p class="large-empty-list-msg">학생들의 접속을 기다리고 있습니다...</p>';
+    } else {
+      // 학생마다 고유 색상 (최대 30명 커버)
+      const dotColors = [
+        '#00e5ff','#00e676','#ffe082','#ff6b8a','#b39ddb',
+        '#ffab40','#69f0ae','#80d8ff','#ea80fc','#f4ff81',
+        '#ff80ab','#84ffff','#ccff90','#ffd180','#ff9e80',
+        '#e040fb','#40c4ff','#64dd17','#ff6d00','#aa00ff',
+        '#00b0ff','#76ff03','#ffff00','#ff1744','#00e5ff',
+        '#d500f9','#00bfa5','#ff6f00','#1de9b6','#f50057'
+      ];
+
+      State.students.forEach((student, idx) => {
+        const isReady = State.studentReadyStates[student.id]?.isReady || false;
+        const color = dotColors[idx % dotColors.length];
+        const tag = document.createElement('div');
+        tag.className = `large-student-tag ${isReady ? 'ready' : ''}`;
+        tag.dataset.studentId = student.id;
+
+        const dot = document.createElement('span');
+        dot.className = 'student-color-dot';
+        dot.style.background = color;
+        dot.style.boxShadow = `0 0 6px ${color}`;
+
+        const name = document.createElement('span');
+        name.className = 'large-student-name';
+        name.textContent = student.nickname;
+
+        const kickBtn = document.createElement('button');
+        kickBtn.className = 'kick-btn';
+        kickBtn.title = `${student.nickname} 퇴장`;
+        kickBtn.textContent = '×';
+        kickBtn.onclick = () => {
+          if (window.kickStudent) window.kickStudent(student.id, student.nickname);
+        };
+
+        tag.appendChild(dot);
+        tag.appendChild(name);
+        tag.appendChild(kickBtn);
+        largeContainer.appendChild(tag);
+      });
+    }
+  }
 }
+
 
 /**
  * 교사 화면의 학생 준비 상태 수 표시 및 출발 버튼 활성화 갱신

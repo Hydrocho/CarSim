@@ -73,35 +73,15 @@ export function createPickupTruck() {
   backWindow.position.set(0, 1.15, -0.61);
   State.truckGroup.add(backWindow);
 
-  // 3.5. 제동 위치 기준 데칼 (양옆 노란색 화살표 페인트 - 지면 밀착형 포인터)
-  const arrowShape = new THREE.Shape();
-  arrowShape.moveTo(-0.02, 0.40);
-  arrowShape.lineTo(0.02, 0.40);
-  arrowShape.lineTo(0.02, 0.0);
-  arrowShape.lineTo(0.10, 0.0);
-  arrowShape.lineTo(0, -0.15);
-  arrowShape.lineTo(-0.10, 0.0);
-  arrowShape.lineTo(-0.02, 0.0);
-  arrowShape.closePath();
-
-  const arrowGeo = new THREE.ShapeGeometry(arrowShape);
-  const arrowMat = new THREE.MeshStandardMaterial({
-    color: 0xffd600,
-    roughness: 0.4,
-    metalness: 0.1
+  // 3.5. 정지 기준 가로줄 (Stop Line - 교사용과 동일한 6m 노란색 라인)
+  const stopLineGeo = new THREE.BoxGeometry(6.0, 0.02, 0.2);
+  const stopLineMat = new THREE.MeshBasicMaterial({
+    color: 0xffd600,       // 노란색
+    depthWrite: false      // 지면 깜빡임 방지 보조
   });
-
-  // 우측 도어 화살표
-  const rightArrow = new THREE.Mesh(arrowGeo, arrowMat);
-  rightArrow.position.set(1.065, 0.18, 2.45);
-  rightArrow.rotation.y = Math.PI / 2;
-  State.truckGroup.add(rightArrow);
-
-  // 좌측 도어 화살표
-  const leftArrow = new THREE.Mesh(arrowGeo, arrowMat);
-  leftArrow.position.set(-1.065, 0.18, 2.45);
-  leftArrow.rotation.y = -Math.PI / 2;
-  State.truckGroup.add(leftArrow);
+  const stopLine = new THREE.Mesh(stopLineGeo, stopLineMat);
+  stopLine.position.set(0, 0.015, 2.5); // 트럭 로컬 앞범퍼 기준 정렬
+  State.truckGroup.add(stopLine);
 
   // 4. 전면 그릴 및 헤드라이트
   const grillGeo = new THREE.BoxGeometry(1.8, 0.4, 0.1);

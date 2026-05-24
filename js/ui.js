@@ -276,18 +276,41 @@ export function updateLeaderboardUI() {
   if (!tbody) return;
   tbody.innerHTML = '';
 
+  const resultsWithRank = [];
+  let currentRank = 1;
+  let prevOffset = null;
+
   State.studentResults.forEach((res, index) => {
+    const currentOffset = parseFloat(Math.abs(res.offsetDistance).toFixed(2));
+    if (prevOffset !== null && currentOffset !== prevOffset) {
+      currentRank = index + 1;
+    }
+    resultsWithRank.push({
+      ...res,
+      rank: currentRank
+    });
+    prevOffset = currentOffset;
+  });
+
+  const rankCounts = {};
+  resultsWithRank.forEach(res => {
+    rankCounts[res.rank] = (rankCounts[res.rank] || 0) + 1;
+  });
+
+  resultsWithRank.forEach((res) => {
     const tr = document.createElement('tr');
 
-    const rank = index + 1;
-    if (rank === 1) tr.className = 'rank-1';
-    else if (rank === 2) tr.className = 'rank-2';
-    else if (rank === 3) tr.className = 'rank-3';
+    if (res.rank === 1) tr.className = 'rank-1';
+    else if (res.rank === 2) tr.className = 'rank-2';
+    else if (res.rank === 3) tr.className = 'rank-3';
 
-    let rankLabel = `${rank}위`;
-    if (rank === 1) rankLabel = '🥇 1위';
-    else if (rank === 2) rankLabel = '🥈 2위';
-    else if (rank === 3) rankLabel = '🥉 3위';
+    const isShared = rankCounts[res.rank] > 1;
+    const sharedPrefix = isShared ? '공동 ' : '';
+
+    let rankLabel = `${sharedPrefix}${res.rank}위`;
+    if (res.rank === 1) rankLabel = `🥇 ${sharedPrefix}1위`;
+    else if (res.rank === 2) rankLabel = `🥈 ${sharedPrefix}2위`;
+    else if (res.rank === 3) rankLabel = `🥉 ${sharedPrefix}3위`;
 
     const setValues = `${res.mass}kg, ${res.speed}km/h`;
 
@@ -343,4 +366,68 @@ export function setupUIEventListeners() {
       updateDashboard();
     });
   }
+}
+
+/**
+ * 교사용 대형 시상대 결과 오버레이 UI 렌더링
+ */
+export function updateTeacherResultOverlayUI() {
+  const overlay = document.getElementById('teacher-result-overlay');
+  const tbody = document.getElementById('sub-ranks-rows');
+  if (!overlay || !tbody) return;
+
+  tbody.innerHTML = '';
+
+  // 1. 순위 계산 (공동 순위 대응)
+  // State.studentResults는 이미 정렬(오차 절대값 오름차순)되어 있음
+  const resultsWithRank = [];
+  let currentRank = 1;
+  let prevOffset = null;
+
+  State.studentResults.forEach((res, index) => {
+    const currentOffset = parseFloat(Math.abs(res.offsetDistance).toFixed(2));
+    if (prevOffset !== null && currentOffset !== prevOffset) {
+      currentRank = index + 1;
+    }
+    resultsWithRank.push({
+      ...res,
+      rank: currentRank
+    });
+    prevOffset = currentOffset;
+  });
+
+  // rank 빈도 계산 (공동 순위 판별용)
+  const rankCounts = {};
+  resultsWithRank.forEach(res => {
+    rankCounts[res.rank] = (rankCounts[res.rank] || 0) + 1;
+  });
+
+  // 3. 전체 리스트 (4위 이하 포함 스크롤 리스트) 생성
+  resultsWithRank.forEach((res) => {
+    const tr = document.createElement('tr');
+    
+    if (res.rank === 1) tr.className = 'rank-highlight-1';
+    else if (res.rank === 2) tr.className = 'rank-highlight-2';
+    else if (res.rank === 3) tr.className = 'rank-highlight-3';
+
+    const isShared = rankCounts[res.rank] > 1;
+    const sharedPrefix = isShared ? '공동 ' : '';
+
+    let rankLabel = `${sharedPrefix}${res.rank}위`;
+    if (res.rank === 1) rankLabel = `🥇 ${sharedPrefix}1위`;
+    else if (res.rank === 2) rankLabel = `🥈 ${sharedPrefix}2위`;
+    else if (res.rank === 3) rankLabel = `🥉 ${sharedPrefix}3위`;
+
+    const setValues = `${res.mass}kg, ${res.speed}km/h`;
+    const sign = res.offsetDistance >= 0 ? '+' : '';
+
+    tr.innerHTML = `
+      <td class="rank-num-cell">${rankLabel}</td>
+      <td style="font-weight:700;">${res.nickname}</td>
+      <td>${setValues}</td>
+      <td>${res.actualDistance.toFixed(2)}m</td>
+      <td><span style="font-weight:700; color:${Math.abs(res.offsetDistance) <= 0.6 ? '#4caf50' : '#f43f5e'}">${sign}${res.offsetDistance.toFixed(2)}m</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
 }

@@ -21,6 +21,7 @@ import {
   updateTeacherReadyStatus,
   updateTeacherCollectionStatus,
   updateLeaderboardUI,
+  updateTeacherResultOverlayUI,
   toggleInputs,
   setupUIEventListeners
 } from './js/ui.js';
@@ -413,6 +414,10 @@ function updateTeacherPhysics(dt) {
     safeSetStyleDisplay('teacher-active', 'none');
     safeSetStyleDisplay('teacher-leaderboard-section', 'flex');
 
+    // 시상대 결과 오버레이 렌더링 및 개방
+    updateTeacherResultOverlayUI();
+    safeSetStyleDisplay('teacher-result-overlay', 'flex');
+
     State.controls.enabled = true;
   }
 }
@@ -733,6 +738,7 @@ async function unlockSessionSettings() {
   safeSetStyleDisplay('teacher-lobby', 'flex');
   safeSetStyleDisplay('teacher-large-lobby-panel', 'flex');
   toggleCameraPanel(false);
+  closeTeacherResultOverlay();
   resetTeacherCamera();
 
   State.students.forEach(s => {
@@ -1038,6 +1044,16 @@ function returnToLogin() {
   
   // 로그인 화면 재노출
   safeSetStyleDisplay('student-login-overlay', 'flex');
+}
+
+// --- 교사: 결과 오버레이 제어 ---
+function showTeacherResultOverlay() {
+  updateTeacherResultOverlayUI();
+  safeSetStyleDisplay('teacher-result-overlay', 'flex');
+}
+
+function closeTeacherResultOverlay() {
+  safeSetStyleDisplay('teacher-result-overlay', 'none');
 }
 
 function onTeacherLockSettings(config) {
@@ -1449,6 +1465,7 @@ async function resetForNextRound() {
   safeSetStyleDisplay('teacher-lobby', 'flex');
   safeSetStyleDisplay('teacher-large-lobby-panel', 'flex');
   toggleCameraPanel(false);
+  closeTeacherResultOverlay();
   resetTeacherCamera();
 
   State.students.forEach(s => {
@@ -1562,6 +1579,8 @@ window.saveCameraSettings = saveCameraSettings;
 window.restoreDefaultCameraSettings = restoreDefaultCameraSettings;
 window.kickStudent = kickStudent;
 window.returnToLogin = returnToLogin;
+window.showTeacherResultOverlay = showTeacherResultOverlay;
+window.closeTeacherResultOverlay = closeTeacherResultOverlay;
 
 // --- 앱 로드 시작 ---
 window.onload = () => {

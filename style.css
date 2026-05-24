@@ -1714,3 +1714,155 @@ input[type=range]:active::-webkit-slider-thumb {
     border-color: rgba(255, 215, 0, 0.6);
   }
 }
+
+/* ==========================================================================
+   교사용 대형 결과 오버레이 & 대형 순위표
+   ========================================================================== */
+.teacher-result-card {
+  width: 90%;
+  max-width: 960px;
+  height: 85%;
+  max-height: 800px;
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.97) 0%, rgba(241, 245, 249, 0.98) 100%);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.25), 0 0 50px rgba(0, 0, 0, 0.03);
+  border-radius: 24px;
+  display: flex;
+  flex-direction: column;
+  padding: 30px;
+  position: relative;
+  overflow: hidden;
+  animation: modal-glow-entrance 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.overlay-title {
+  text-align: center;
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #0f172a !important;
+  margin-top: 10px;
+  margin-bottom: 25px;
+  letter-spacing: -0.5px;
+  border-left: none !important;
+  padding-left: 0 !important;
+  border-bottom: 2px solid rgba(0, 0, 0, 0.05);
+  padding-bottom: 12px;
+}
+
+/* 전체 스크롤 테이블 */
+.sub-ranks-container {
+  flex: 1;
+  overflow-y: auto;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  padding: 0 12px 12px 12px; /* 상단 패딩 제거 */
+  margin-bottom: 10px;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);
+}
+
+.sub-ranks-container::-webkit-scrollbar {
+  width: 8px;
+}
+.sub-ranks-container::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 10px;
+}
+.sub-ranks-container::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+}
+.sub-ranks-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.sub-ranks-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.sub-ranks-table th {
+  position: sticky;
+  top: 0;
+  background: #e2e8f0;
+  padding: 16px 20px;
+  font-size: 1.15rem; /* 글자 크기 더 확대 */
+  font-weight: 700;
+  color: #1e293b;
+  text-transform: uppercase;
+  text-align: left;
+  border-bottom: 2.5px solid #cbd5e1;
+  z-index: 1;
+}
+
+.sub-ranks-table td {
+  padding: 16px 20px;
+  font-size: 1.25rem; /* 글자 크기 한 층 더 크게 확대 */
+  color: #334155;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.sub-ranks-table tr:hover td {
+  background: rgba(0, 0, 0, 0.015);
+}
+
+/* 1, 2, 3위 행의 메달 톤 하이라이트 대폭 보강 */
+.sub-ranks-table tr.rank-highlight-1 td {
+  background: linear-gradient(90deg, rgba(251, 191, 36, 0.1) 0%, rgba(251, 191, 36, 0.02) 100%);
+  font-weight: 700;
+  color: #1e293b;
+}
+.sub-ranks-table tr.rank-highlight-2 td {
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.1) 0%, rgba(148, 163, 184, 0.02) 100%);
+  font-weight: 700;
+  color: #334155;
+}
+.sub-ranks-table tr.rank-highlight-3 td {
+  background: linear-gradient(90deg, rgba(217, 119, 6, 0.08) 0%, rgba(217, 119, 6, 0.01) 100%);
+  font-weight: 700;
+  color: #475569;
+}
+
+.sub-ranks-table .rank-num-cell {
+  font-weight: 900;
+  font-family: 'Outfit', sans-serif;
+  color: #0284c7;
+}
+
+/* 닫기 버튼 */
+.overlay-close-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  color: #475569;
+  font-size: 1.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  z-index: 100;
+}
+
+.overlay-close-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+  transform: rotate(90deg);
+}
+
+@keyframes modal-glow-entrance {
+  from {
+    transform: scale(0.9) translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}

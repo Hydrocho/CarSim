@@ -155,27 +155,18 @@
 
       <!-- 3단계: 리더보드 단계 -->
       <div id="teacher-leaderboard-section" class="monitor-section" style="display: none;">
-        <h3>🏆 실시간 제동 리더보드</h3>
-        <div class="leaderboard-container">
-          <table class="leaderboard-table">
-            <thead>
-              <tr>
-                <th>순위</th>
-                <th>이름</th>
-                <th>설정값</th>
-                <th>제동거리</th>
-                <th>오차</th>
-              </tr>
-            </thead>
-            <tbody id="leaderboard-rows">
-              <!-- 실시간 랭킹 추가됨 -->
-            </tbody>
-          </table>
+        <h3>🏆 주행 완료 및 집계 완료</h3>
+        <div class="action-buttons-vertical" style="margin-top: 10px; gap: 8px;">
+          <button class="btn btn-primary" onclick="showTeacherResultOverlay()">
+            📊 순위 결과 다시 보기
+          </button>
+          <button class="btn btn-accent" onclick="resetForNextRound()">
+            🔄 다음 라운드 준비 (대기실 리셋)
+          </button>
+          <button class="btn btn-secondary" onclick="unlockSessionSettings()">
+            🔓 조건 변경 (대기실로 변경)
+          </button>
         </div>
-
-        <button class="btn btn-accent" onclick="resetForNextRound()">
-          🔄 다음 라운드 준비 (대기실 리셋)
-        </button>
       </div>
     </section>
 
@@ -362,6 +353,32 @@
     <div class="panel-buttons" style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 8px; margin-top: 10px;">
       <button class="btn btn-primary" style="padding: 8px 12px; font-size: 0.82rem;" onclick="saveCameraSettings()">💾 설정값 확정</button>
       <button class="btn btn-secondary" style="padding: 8px 12px; font-size: 0.82rem;" onclick="restoreDefaultCameraSettings()">🔄 기본값 리셋</button>
+    </div>
+  </div>
+
+  <!-- 교사용 대형 리더보드 오버레이 (대형 순위표) -->
+  <div id="teacher-result-overlay" class="modal-overlay" style="display: none;">
+    <div class="modal-content teacher-result-card">
+      <button class="overlay-close-btn" onclick="closeTeacherResultOverlay()">×</button>
+      <h2 class="overlay-title">🏆 순위 발표</h2>
+      
+      <!-- 전체 스크롤 리스트 -->
+      <div class="sub-ranks-container">
+        <table class="sub-ranks-table">
+          <thead>
+            <tr>
+              <th>순위</th>
+              <th>이름</th>
+              <th>설정값</th>
+              <th>제동거리</th>
+              <th>오차</th>
+            </tr>
+          </thead>
+          <tbody id="sub-ranks-rows">
+            <!-- 동적으로 주입될 순위 목록 -->
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 

@@ -401,9 +401,6 @@ function selectRole(role) {
     safeSetStyleDisplay('teacher-panel', 'none');
     safeSetStyleDisplay('student-panel', 'flex');
     safeSetStyleDisplay('student-login-overlay', 'flex');
-
-    const mainUi = document.getElementById('main-ui');
-    if (mainUi) mainUi.style.pointerEvents = 'none';
   }
 }
 
@@ -763,8 +760,6 @@ function setupStudentRealtime() {
         });
 
         safeSetStyleDisplay('student-login-overlay', 'none');
-        const mainUi = document.getElementById('main-ui');
-        if (mainUi) mainUi.style.pointerEvents = 'auto';
         showStudentLobbyWait();
       } else if (status === 'CHANNEL_ERROR') {
         alert("서버 연결 오류가 발생했습니다.");

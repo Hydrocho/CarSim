@@ -162,18 +162,42 @@ export function updateStudentLobbyUI() {
 }
 
 /**
- * 교사 화면의 학생 준비 상태 수 표시 갱신
+ * 교사 화면의 학생 준비 상태 수 표시 및 출발 버튼 활성화 갱신
  */
 export function updateTeacherReadyStatus() {
+  if (State.isCollectingData) return; // 데이터 수집 중일 때는 버튼 갱신을 개별 수집 함수에서 처리합니다.
+
+  const readyFraction = document.getElementById('ready-fraction');
+  const progressBar = document.getElementById('ready-progress-bar');
+  const startBtn = document.getElementById('btn-teacher-start');
+
+  const total = State.activeStudents.length;
   let readyCount = 0;
-  State.activeStudents.forEach(student => {
-    if (State.studentReadyStates[student.id]?.isReady) {
-      readyCount++;
-    }
+  State.activeStudents.forEach(s => {
+    if (State.studentReadyStates[s.id]?.isReady) readyCount++;
   });
 
-  safeSetText('ready-count', readyCount);
-  safeSetText('total-count', State.activeStudents.length);
+  if (readyFraction) readyFraction.innerText = `${readyCount} / ${total}`;
+  const percent = total > 0 ? (readyCount / total) * 100 : 0;
+  if (progressBar) progressBar.style.width = `${percent}%`;
+
+  // 학생이 최소 1명 이상 있으면 일괄 출발 버튼을 활성화하여 교사가 강제 출발할 수 있도록 허용
+  if (startBtn) {
+    if (total > 0) {
+      startBtn.disabled = false;
+      if (readyCount === total) {
+        startBtn.innerHTML = `<svg class="icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>🚀 일괄 출발 (전원 완료)`;
+        startBtn.className = 'btn btn-primary';
+      } else {
+        startBtn.innerHTML = `<svg class="icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>🚀 강제 출발 (${readyCount}/${total}명 완료)`;
+        startBtn.className = 'btn btn-accent';
+      }
+    } else {
+      startBtn.disabled = true;
+      startBtn.innerHTML = `<svg class="icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>일괄 출발 (대기 중)`;
+      startBtn.className = 'btn btn-primary';
+    }
+  }
 
   // 로비 UI도 함께 갱신
   updateStudentLobbyUI();
@@ -183,11 +207,12 @@ export function updateTeacherReadyStatus() {
  * 강제 출발 시 수집 중인 학생 수 상태 표시 갱신
  */
 export function updateTeacherCollectionStatus() {
-  const total = State.activeStudents.length;
-  const collected = State.collectedStudentIds.size;
-  const btn = document.getElementById('btn-teacher-force-start');
-  if (btn) {
-    btn.innerHTML = `<i class="bi bi-play-fill"></i> 데이터 수집 및 즉시 강제 시작 (${collected}/${total})`;
+  const startBtn = document.getElementById('btn-teacher-start');
+  if (startBtn) {
+    const collected = State.collectedStudentIds.size;
+    const total = State.activeStudents.length;
+    startBtn.innerHTML = `<svg class="icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>⏳ 데이터 수집 중 (${collected}/${total}) | 즉시 출발`;
+    startBtn.className = 'btn btn-accent';
   }
 }
 

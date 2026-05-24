@@ -451,7 +451,7 @@ export function updateInstancedTrucks() {
     State.instancedFakeShadows.setMatrixAt(index, dummy.matrix);
 
     // 6. 상자 짐
-    const state = State.studentReadyStates[student.id] || { mass: 1500 };
+    const state = State.studentReadyStates[student.id] || { mass: 2500 };
     const addedWeight = state.mass - 1000;
     const numBoxes = Math.min(16, Math.floor(addedWeight / 250));
 

@@ -88,6 +88,9 @@
           <div id="teacher-range-guide" class="mode-guide-desc" style="color: #00e5ff; font-weight: 600; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 6px;">
             도달 가능 범위: 25.0m ~ 95.0m
           </div>
+          <div id="teacher-hint-guide" class="mode-guide-desc" style="color: #ffe082; font-weight: 500; margin-top: 4px;">
+            기준 힌트값: 2500kg, 40km/h일 때 제동거리 20.00m
+          </div>
         </div>
 
         <div class="control-group">
@@ -189,7 +192,7 @@
         <div class="target-card">
           <span class="label">🎯 이번 라운드 목표 제동 거리</span>
           <span id="student-target-display" class="value">--m</span>
-          <p id="student-hint-display" class="hint-text">힌트: 500kg, 20km/h일 때 제동거리 1.00m</p>
+          <p id="student-hint-display" class="hint-text">힌트: 2500kg, 40km/h일 때 제동거리 20.00m</p>
         </div>
 
         <!-- 질량 조절 -->
@@ -197,12 +200,12 @@
           <div class="control-header">
             <label for="mass-slider">차량 질량 (m)</label>
             <div class="value-input-wrapper">
-              <input type="number" id="mass-input" min="1000" max="5000" step="1" value="1500" oninput="syncInputs('mass', this.value)">
+              <input type="number" id="mass-input" min="1000" max="5000" step="1" value="2500" oninput="syncInputs('mass', this.value)">
               <span class="unit">kg</span>
             </div>
           </div>
           <div class="slider-wrapper">
-            <input type="range" id="mass-slider" min="1000" max="5000" step="1" value="1500" oninput="syncInputs('mass', this.value)">
+            <input type="range" id="mass-slider" min="1000" max="5000" step="1" value="2500" oninput="syncInputs('mass', this.value)">
             <div class="slider-ticks">
               <span>1,000kg (공차)</span>
               <span>5,000kg (최대)</span>
@@ -215,12 +218,12 @@
           <div class="control-header">
             <label for="speed-slider">초기 속력 (v)</label>
             <div class="value-input-wrapper">
-              <input type="number" id="speed-input" min="10" max="150" step="1" value="50" oninput="syncInputs('speed', this.value)">
+              <input type="number" id="speed-input" min="10" max="150" step="1" value="40" oninput="syncInputs('speed', this.value)">
               <span class="unit">km/h</span>
             </div>
           </div>
           <div class="slider-wrapper">
-            <input type="range" id="speed-slider" min="10" max="150" step="1" value="50" oninput="syncInputs('speed', this.value)">
+            <input type="range" id="speed-slider" min="10" max="150" step="1" value="40" oninput="syncInputs('speed', this.value)">
             <div class="slider-ticks">
               <span>10 km/h</span>
               <span>150 km/h</span>

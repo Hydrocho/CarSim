@@ -70,8 +70,8 @@ export const State = {
   // 시뮬레이션 물리 제어 변수
   simulationState: 'idle', // 'idle' | 'driving' | 'braking' | 'stopped'
   currentMode: 'challenge', // 'challenge' 고정
-  mass: 1500,             // kg
-  initialSpeedKmh: 50,    // km/h
+  mass: 2500,             // kg
+  initialSpeedKmh: 40,    // km/h
   currentSpeedMps: 0,     // m/s
   targetDistance: 45,     // m
   brakingElapsedTime: 0,  // s

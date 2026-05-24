@@ -207,6 +207,10 @@ function resetSimulation() {
   resetCamera();
   toggleInputs(false);
 
+  // 기본값 (2500kg, 40km/h)으로 리셋 및 UI 동기화
+  syncInputs('mass', 2500);
+  syncInputs('speed', 40);
+
   safeSetDisabled('btn-start', false);
   safeSetDisabled('btn-reset', true);
   safeSetDisabled('btn-new-target', false);
@@ -346,7 +350,7 @@ function updateTeacherPhysics(dt) {
   let allStopped = true;
 
   State.activeStudents.forEach((student) => {
-    const state = State.studentReadyStates[student.id] || { mass: 1500, speed: 50 };
+    const state = State.studentReadyStates[student.id] || { mass: 2500, speed: 40 };
     const initialSpeedMps = state.speed / 3.6;
     const deceleration = getDeceleration(state.mass);
 
@@ -575,12 +579,12 @@ function updateTeacherTargetSliderRange(mode) {
   let stepVal = 1;
 
   if (mode === 'MASS_ONLY') {
-    minVal = 12.5;
-    maxVal = 62.5;
+    minVal = 8.0;
+    maxVal = 40.0;
     stepVal = 0.5;
   } else if (mode === 'SPEED_ONLY') {
     minVal = 2.5;
-    maxVal = 112.5;
+    maxVal = 281.0;
     stepVal = 0.5;
   }
 
@@ -616,10 +620,10 @@ function setControlMode(mode) {
     guideText = '학생들이 질량과 속력을 모두 자유롭게 변경할 수 있습니다.';
   } else if (mode === 'MASS_ONLY') {
     document.getElementById('mode-btn-mass').classList.add('active');
-    guideText = '속력이 50 km/h로 잠기며, 학생들이 차량 질량만 변경할 수 있습니다. (설정 가능 거리: 12.5m ~ 62.5m)';
+    guideText = '속력이 40 km/h로 잠기며, 학생들이 차량 질량만 변경할 수 있습니다. (설정 가능 거리: 8.0m ~ 40.0m)';
   } else if (mode === 'SPEED_ONLY') {
     document.getElementById('mode-btn-speed').classList.add('active');
-    guideText = '질량이 1500 kg으로 잠기며, 학생들이 초기 속력만 변경할 수 있습니다. (설정 가능 거리: 2.5m ~ 112.5m)';
+    guideText = '질량이 2500 kg으로 잠기며, 학생들이 초기 속력만 변경할 수 있습니다. (설정 가능 거리: 2.5m ~ 281.3m)';
   }
   
   const guideEl = document.getElementById('mode-guide-text');
@@ -659,8 +663,8 @@ async function lockSessionSettings() {
   const payload = {
     targetDistance: State.targetDistance,
     controlMode: State.controlMode,
-    fixedMass: 1500,
-    fixedSpeed: 50
+    fixedMass: 2500,
+    fixedSpeed: 40
   };
 
   if (isConnected() && realtimeChannel) {
@@ -760,7 +764,7 @@ async function proceedActualLaunch() {
   State.simulationState = 'driving';
 
   State.activeStudents.forEach(s => {
-    const state = State.studentReadyStates[s.id] || { mass: 1500, speed: 50 };
+    const state = State.studentReadyStates[s.id] || { mass: 2500, speed: 40 };
     State.studentCarPositions[s.id] = START_Z;
     State.studentCarSpeeds[s.id] = state.speed / 3.6;
     State.studentCarStates[s.id] = 'driving';
@@ -865,6 +869,12 @@ function onTeacherLockSettings(config) {
 
   safeSetText('student-target-display', `${State.targetDistance.toFixed(1)}m`);
 
+  // 항상 출발전 슬라이드를 조절할 때에는 기본값인 2,500 kg, 40km/h이 설정되도록 강제 초기화
+  syncInputs('mass', 2500);
+  syncInputs('speed', 40);
+
+  resetCamera();
+
   const massSlider = document.getElementById('mass-slider');
   const massInput = document.getElementById('mass-input');
   const speedSlider = document.getElementById('speed-slider');
@@ -916,6 +926,10 @@ function onTeacherLockSettings(config) {
 
     if (massGroup) massGroup.classList.remove('locked');
     if (speedGroup) speedGroup.classList.remove('locked');
+
+    // BOTH 모드 활성화 시 기본값(2500kg, 40km/h) 강제 동기화
+    syncInputs('mass', 2500);
+    syncInputs('speed', 40);
   }
 
   updateDashboard();
@@ -1149,6 +1163,12 @@ async function resetForNextRound() {
 function onNextRoundTriggered() {
   closeStudentResultModal();
   State.simulationState = 'idle';
+
+  // 다음 라운드 전환 시 기본값(2500kg, 40km/h)으로 리셋
+  syncInputs('mass', 2500);
+  syncInputs('speed', 40);
+
+  resetCamera();
 
   const readyBtn = document.getElementById('btn-student-ready');
   if (readyBtn) {

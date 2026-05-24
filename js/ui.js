@@ -268,7 +268,7 @@ export function setupUIEventListeners() {
   if (massInput) {
     massInput.addEventListener('blur', () => {
       let val = parseInt(massInput.value);
-      if (isNaN(val)) val = 1500;
+      if (isNaN(val)) val = 2500;
       val = Math.max(1000, Math.min(5000, val));
       massInput.value = val;
       State.mass = val;
@@ -282,7 +282,7 @@ export function setupUIEventListeners() {
   if (speedInput) {
     speedInput.addEventListener('blur', () => {
       let val = parseInt(speedInput.value);
-      if (isNaN(val)) val = 50;
+      if (isNaN(val)) val = 40;
       val = Math.max(10, Math.min(150, val));
       speedInput.value = val;
       State.initialSpeedKmh = val;

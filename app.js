@@ -110,7 +110,7 @@ let nameTagsContainer;
 let studentDomElements = {};
 
 // 교사용 35인 다차선 인스턴스 메쉬 객체들
-let instancedChassis, instancedHood, instancedCab, instancedWheels, instancedFakeShadows, instancedCargo;
+let instancedChassis, instancedHood, instancedCab, instancedWheels, instancedFakeShadows, instancedCargo, instancedArrows;
 
 // 시뮬레이션 제어 변수
 let simulationState = 'idle'; // 'idle', 'driving', 'braking', 'stopped'
@@ -1628,6 +1628,7 @@ function setupTeacherInstancedTrucks(count) {
   if (instancedWheels) scene.remove(instancedWheels);
   if (instancedFakeShadows) scene.remove(instancedFakeShadows);
   if (instancedCargo) scene.remove(instancedCargo);
+  if (instancedArrows) scene.remove(instancedArrows);
 
   const chassisGeo = new THREE.BoxGeometry(2.3, 0.3, 5.2);
   const chassisMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.4 });
@@ -1675,6 +1676,27 @@ function setupTeacherInstancedTrucks(count) {
   instancedCargo.castShadow = false;
   instancedCargo.receiveShadow = false;
   scene.add(instancedCargo);
+
+  // 학생 크자용 노란색 위치 표시 화살표 (InstancedMesh)
+  const arrowShape = new THREE.Shape();
+  arrowShape.moveTo(-0.25, 0);   // 화살 머리 좌상닸
+  arrowShape.lineTo(0.25, 0);    // 화살 머리 우상닸
+  arrowShape.lineTo(0.25, 0.4);  // 진행 방향으로 사각형 오른쪽
+  arrowShape.lineTo(0.6, 0.4);   // 화살 머리 오른쪽 돌출
+  arrowShape.lineTo(0, 1.0);     // 화살 머리 끝점
+  arrowShape.lineTo(-0.6, 0.4);  // 화살 머리 왼쪽 돌출
+  arrowShape.lineTo(-0.25, 0.4); // 진행 방향으로 사각형 왼쪽
+  arrowShape.closePath();
+
+  const arrowGeo = new THREE.ShapeGeometry(arrowShape);
+  const arrowMat = new THREE.MeshBasicMaterial({
+    color: 0xffd600,       // 노란색
+    side: THREE.DoubleSide,
+    depthTest: false       // 오브제트 위에도 항상 보이도록
+  });
+  instancedArrows = new THREE.InstancedMesh(arrowGeo, arrowMat, count);
+  instancedArrows.renderOrder = 999; // 항상 최상단 렌더
+  scene.add(instancedArrows);
 
   // 인스턴스별 고유 차량 컬러 맵핑 (학생별 시인성 부여)
   const colors = [0x00a8ff, 0xff1744, 0x00e676, 0xffea00, 0xd500f9, 0xff6d00, 0x00e5ff, 0xf50057];
@@ -1825,11 +1847,28 @@ function updateInstancedTrucks() {
   instancedWheels.instanceMatrix.needsUpdate = true;
   instancedFakeShadows.instanceMatrix.needsUpdate = true;
   instancedCargo.instanceMatrix.needsUpdate = true;
+
+  // 7. 노란 화살표 위치 갱신
+  // rotation.x = +Math.PI/2 : 화살 끝점(local +Y)이 world +Z(앞 방향)으로 매핑
+  // zPos - 0.5 : 화살표 길이 1.0m이므로 base=zPos-0.5 ~ tip=zPos+0.5, 트럭 정중앙 위에 정렬
+  if (instancedArrows) {
+    activeStudents.forEach((student, index) => {
+      const zPos = studentCarPositions[student.id] !== undefined ? studentCarPositions[student.id] : START_Z;
+      const xPos = getLaneX(index, activeStudents.length);
+      dummy.position.set(xPos, 3.5, zPos - 0.5);
+      dummy.rotation.set(Math.PI / 2, 0, 0); // 앞방향(+Z) 표시
+      dummy.scale.set(1, 1, 1);
+      dummy.updateMatrix();
+      instancedArrows.setMatrixAt(index, dummy.matrix);
+    });
+    instancedArrows.instanceMatrix.needsUpdate = true;
+  }
 }
 
 // --- 교사용 학생 이름표 2D 캔버스 오버레이 갱신 ---
 function updateStudentNameTags() {
-  if (userRole !== 'teacher' || simulationState === 'idle' || !nameTagsContainer) {
+  // 학생이 한 명도 없으면 숨김 (idle 상태 여부와 상관없이 항상 표시)
+  if (userRole !== 'teacher' || activeStudents.length === 0 || !nameTagsContainer) {
     if (nameTagsContainer) nameTagsContainer.style.display = 'none';
     return;
   }
@@ -2557,6 +2596,7 @@ function onWindowResize() {
 function updateTeacherPhysics(dt) {
   if (simulationState === 'idle') {
     controls.update();
+    updateInstancedTrucks();    // idle 상태에서도 트럭 위치 및 노란 화살표 갱신
     updateStudentNameTags();
     return;
   }

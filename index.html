@@ -281,6 +281,16 @@
   <div id="student-result-modal" class="modal-overlay" style="display: none;">
     <div class="modal-content">
       <h2>🏁 나의 실험 결과</h2>
+      
+      <!-- 나의 실시간/최종 순위 카드 -->
+      <div id="student-rank-card" class="rank-card" style="display: none;">
+        <span class="rank-label" id="student-rank-label">나의 실시간 순위</span>
+        <div class="rank-value-container">
+          <span id="student-rank-value" class="rank-value">--</span>
+          <span class="rank-total">/ <span id="student-rank-total-value">--</span>명</span>
+        </div>
+      </div>
+
       <div class="result-metrics">
         <div class="metric-item">
           <span class="label">실제 제동 거리</span>

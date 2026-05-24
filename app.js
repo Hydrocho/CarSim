@@ -923,6 +923,9 @@ function setupStudentRealtime() {
         }
       }
     })
+    .on('broadcast', { event: 'update-rankings' }, ({ payload }) => {
+      onRankingsUpdated(payload);
+    })
     .subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
         // --- 중복 닉네임 체크 ---
@@ -1040,6 +1043,11 @@ function returnToLogin() {
 function onTeacherLockSettings(config) {
   safeSetStyleDisplay('student-wait-message', 'none');
   safeSetStyleDisplay('student-dashboard', 'flex');
+
+  // 실시간 랭킹 관련 상태 초기화
+  State.currentRankings = null;
+  State.totalResults = 0;
+  State.totalActive = 0;
 
   State.targetDistance = config.targetDistance;
   State.controlMode = config.controlMode;
@@ -1253,6 +1261,79 @@ async function recordResultToDB(payload) {
   }
 }
 
+function onRankingsUpdated(payload) {
+  State.currentRankings = payload.ranks;
+  State.totalResults = payload.totalResults;
+  State.totalActive = payload.totalActive;
+  
+  updateStudentRankUI();
+}
+
+function updateStudentRankUI() {
+  const rankCard = document.getElementById('student-rank-card');
+  const rankVal = document.getElementById('student-rank-value');
+  const totalVal = document.getElementById('student-rank-total-value');
+  const rankLabel = document.getElementById('student-rank-label');
+
+  if (!rankCard) return;
+
+  // 싱글플레이어 상태거나 랭킹 데이터가 유효하지 않으면 숨김
+  if (!State.isMultiplayer || !State.myStudentId) {
+    rankCard.style.display = 'none';
+    return;
+  }
+
+  const myRank = State.currentRankings ? State.currentRankings[State.myStudentId] : undefined;
+  const total = State.totalActive || 0;
+
+  rankCard.style.display = 'flex';
+
+  // 랭킹 카드 초기화 (메달 이펙트 클래스 제거)
+  rankCard.classList.remove('gold-rank', 'silver-rank', 'bronze-rank', 'normal-rank');
+
+  if (myRank === undefined) {
+    // 아직 교사가 내 순위를 갱신하지 않은 대기 상태
+    if (rankVal) rankVal.innerText = '--';
+    if (totalVal) totalVal.innerText = total;
+    if (rankLabel) rankLabel.innerText = '나의 실시간 순위';
+    rankCard.classList.add('normal-rank');
+  } else {
+    // 랭킹 수신 완료
+    if (totalVal) totalVal.innerText = total;
+    
+    // 공동 순위 판정: 나 외에 동일 순위를 가진 학생이 있는지 검사
+    let isTied = false;
+    if (State.currentRankings) {
+      Object.entries(State.currentRankings).forEach(([sid, r]) => {
+        if (sid !== State.myStudentId && r === myRank) {
+          isTied = true;
+        }
+      });
+    }
+
+    const rankPrefix = isTied ? '공동 ' : '';
+    if (rankLabel) {
+      // 모든 인원이 완료했으면 최종 순위, 아니면 실시간 순위로 표기
+      const isFinished = State.totalResults >= total;
+      rankLabel.innerText = isFinished ? '🏆 나의 최종 순위' : '📊 나의 실시간 순위';
+    }
+
+    if (myRank === 1) {
+      if (rankVal) rankVal.innerHTML = `🥇 ${rankPrefix}1위`;
+      rankCard.classList.add('gold-rank');
+    } else if (myRank === 2) {
+      if (rankVal) rankVal.innerHTML = `🥈 ${rankPrefix}2위`;
+      rankCard.classList.add('silver-rank');
+    } else if (myRank === 3) {
+      if (rankVal) rankVal.innerHTML = `🥉 ${rankPrefix}3위`;
+      rankCard.classList.add('bronze-rank');
+    } else {
+      if (rankVal) rankVal.innerHTML = `${rankPrefix}${myRank}위`;
+      rankCard.classList.add('normal-rank');
+    }
+  }
+}
+
 function showStudentResultDetail(actual, offset) {
   const modal = document.getElementById('student-result-modal');
   const actualText = document.getElementById('student-actual-dist');
@@ -1271,6 +1352,17 @@ function showStudentResultDetail(actual, offset) {
       offsetText.style.color = '#4caf50';
     } else {
       offsetText.style.color = '#ff1744';
+    }
+  }
+
+  // --- 실시간/최종 순위 카드 제어 ---
+  const rankCard = document.getElementById('student-rank-card');
+  if (rankCard) {
+    if (State.isMultiplayer) {
+      rankCard.style.display = 'flex';
+      updateStudentRankUI();
+    } else {
+      rankCard.style.display = 'none';
     }
   }
 
@@ -1321,6 +1413,35 @@ function addStudentResult(res) {
   State.studentResults.push(res);
   State.studentResults.sort((a, b) => Math.abs(a.offsetDistance) - Math.abs(b.offsetDistance));
   updateLeaderboardUI();
+  broadcastRankings();
+}
+
+function broadcastRankings() {
+  if (!isConnected() || !realtimeChannel) return;
+
+  const ranks = {};
+  let currentRank = 1;
+  let prevOffset = null;
+
+  State.studentResults.forEach((r, index) => {
+    // 소수점 둘째 자리 포맷된 오차 절대값으로 동일성 비교
+    const currentOffset = parseFloat(Math.abs(r.offsetDistance).toFixed(2));
+    if (prevOffset !== null && currentOffset !== prevOffset) {
+      currentRank = index + 1;
+    }
+    ranks[r.studentId] = currentRank;
+    prevOffset = currentOffset;
+  });
+
+  realtimeChannel.send({
+    type: 'broadcast',
+    event: 'update-rankings',
+    payload: {
+      ranks: ranks,
+      totalResults: State.studentResults.length,
+      totalActive: State.activeStudents.length
+    }
+  });
 }
 
 async function resetForNextRound() {
@@ -1353,6 +1474,11 @@ async function resetForNextRound() {
 function onNextRoundTriggered() {
   closeStudentResultModal();
   State.simulationState = 'idle';
+
+  // 실시간 랭킹 관련 상태 초기화
+  State.currentRankings = null;
+  State.totalResults = 0;
+  State.totalActive = 0;
 
   // 다음 라운드 전환 시 기본값(2500kg, 40km/h)으로 리셋
   syncInputs('mass', 2500);

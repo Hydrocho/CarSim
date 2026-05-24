@@ -22,6 +22,14 @@ export const State = {
   roadText: null,
   signboardMarkers: [],
   sunLight: null,
+  teacherCamConfig: {
+    posX: 0,
+    posY: 20,
+    posZ: -60,
+    tarX: 0,
+    tarY: 2,
+    tarZ: 35
+  },
   environmentGroup: null,
 
   // 멀티플레이어 연결 상태

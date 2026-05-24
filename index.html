@@ -63,7 +63,10 @@
 
     <!-- 교사 설정 및 관리 패널 -->
     <section id="teacher-panel" class="control-panel panel" style="display: none;">
-      <h2>교사 관리 센터</h2>
+      <div class="panel-title-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <h2>교사 관리 센터</h2>
+        <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.72rem; border-radius: 8px; font-weight: 700;" onclick="toggleCameraPanel(true)">📹 카메라 설정</button>
+      </div>
       
       <!-- 1단계: 로비 단계 -->
       <div id="teacher-lobby" class="monitor-section">
@@ -267,6 +270,57 @@
       <div class="modal-buttons" style="grid-template-columns: 1fr;">
         <button class="btn btn-secondary" onclick="closeStudentResultModal()">🔍 3D 화면 둘러보기</button>
       </div>
+    </div>
+  </div>
+
+  <!-- 교사용 카메라 셋업 플로팅 팝업 패널 (화면 우측 상단 배치) -->
+  <div id="teacher-camera-panel" class="floating-panel panel" style="display: none;">
+    <div class="panel-header">
+      <h3>📹 카메라 앵글 상세 설정</h3>
+      <button class="close-btn" onclick="toggleCameraPanel(false)">×</button>
+    </div>
+    
+    <div class="control-group" style="padding: 10px; gap: 8px;">
+      <span class="section-title" style="display: block; font-size: 0.75rem; font-weight: 700; color: #8fa0ba; margin-bottom: 6px; border-bottom: 1px dashed rgba(255, 255, 255, 0.05); padding-bottom: 4px;">카메라 위치 (Camera Position)</span>
+      
+      <div class="slider-item" style="display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px;">
+        <label for="cam-pos-x" style="font-size: 0.72rem; color: #cbd5e1; display: flex; justify-content: space-between;">Pos X: <span id="cam-pos-x-val" style="font-weight: 700; color: #00e5ff;">0.0</span>m</label>
+        <input type="range" id="cam-pos-x" min="-50" max="50" step="0.5" value="0" oninput="updateLiveCameraSetting('posX', this.value)">
+      </div>
+      
+      <div class="slider-item" style="display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px;">
+        <label for="cam-pos-y" style="font-size: 0.72rem; color: #cbd5e1; display: flex; justify-content: space-between;">Pos Y: <span id="cam-pos-y-val" style="font-weight: 700; color: #00e5ff;">20.0</span>m</label>
+        <input type="range" id="cam-pos-y" min="1" max="100" step="0.5" value="20" oninput="updateLiveCameraSetting('posY', this.value)">
+      </div>
+      
+      <div class="slider-item" style="display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px;">
+        <label for="cam-pos-z" style="font-size: 0.72rem; color: #cbd5e1; display: flex; justify-content: space-between;">Pos Z: <span id="cam-pos-z-val" style="font-weight: 700; color: #00e5ff;">-60.0</span>m</label>
+        <input type="range" id="cam-pos-z" min="-150" max="150" step="0.5" value="-60" oninput="updateLiveCameraSetting('posZ', this.value)">
+      </div>
+    </div>
+
+    <div class="control-group" style="padding: 10px; gap: 8px;">
+      <span class="section-title" style="display: block; font-size: 0.75rem; font-weight: 700; color: #8fa0ba; margin-bottom: 6px; border-bottom: 1px dashed rgba(255, 255, 255, 0.05); padding-bottom: 4px;">카메라 타깃 (Camera Target)</span>
+      
+      <div class="slider-item" style="display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px;">
+        <label for="cam-tar-x" style="font-size: 0.72rem; color: #cbd5e1; display: flex; justify-content: space-between;">Tar X: <span id="cam-tar-x-val" style="font-weight: 700; color: #00e5ff;">0.0</span>m</label>
+        <input type="range" id="cam-tar-x" min="-50" max="50" step="0.5" value="0" oninput="updateLiveCameraSetting('tarX', this.value)">
+      </div>
+      
+      <div class="slider-item" style="display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px;">
+        <label for="cam-tar-y" style="font-size: 0.72rem; color: #cbd5e1; display: flex; justify-content: space-between;">Tar Y: <span id="cam-tar-y-val" style="font-weight: 700; color: #00e5ff;">2.0</span>m</label>
+        <input type="range" id="cam-tar-y" min="0" max="20" step="0.5" value="2" oninput="updateLiveCameraSetting('tarY', this.value)">
+      </div>
+      
+      <div class="slider-item" style="display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px;">
+        <label for="cam-tar-z" style="font-size: 0.72rem; color: #cbd5e1; display: flex; justify-content: space-between;">Tar Z: <span id="cam-tar-z-val" style="font-weight: 700; color: #00e5ff;">35.0</span>m</label>
+        <input type="range" id="cam-tar-z" min="-50" max="350" step="0.5" value="35" oninput="updateLiveCameraSetting('tarZ', this.value)">
+      </div>
+    </div>
+
+    <div class="panel-buttons" style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 8px; margin-top: 10px;">
+      <button class="btn btn-primary" style="padding: 8px 12px; font-size: 0.82rem;" onclick="saveCameraSettings()">💾 설정값 확정</button>
+      <button class="btn btn-secondary" style="padding: 8px 12px; font-size: 0.82rem;" onclick="restoreDefaultCameraSettings()">🔄 기본값 리셋</button>
     </div>
   </div>
 

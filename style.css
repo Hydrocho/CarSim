@@ -1143,3 +1143,47 @@ input[type=range]:active::-webkit-slider-thumb {
   100% { border-color: rgba(0, 229, 255, 0.2); }
 }
 
+/* Floating Panel for Camera Setup */
+.floating-panel {
+  position: absolute !important;
+  top: 24px;
+  right: 24px;
+  width: 320px;
+  z-index: 999;
+  pointer-events: auto !important;
+  animation: slide-in-right 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes slide-in-right {
+  from { transform: translateX(50px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+}
+
+.panel-header h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #00e5ff;
+}
+
+.panel-header .close-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 24px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.panel-header .close-btn:hover {
+  color: #ff1744;
+}
+

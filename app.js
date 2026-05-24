@@ -66,6 +66,90 @@ function resetCamera() {
   State.controls.update();
 }
 
+// --- 교사용 카메라 기본 위치 리셋 (자동차 뒤 드론 뷰, 고정 카메라) ---
+function resetTeacherCamera() {
+  if (!State.camera || !State.controls) return;
+  const cfg = State.teacherCamConfig;
+  State.camera.position.set(cfg.posX, cfg.posY, cfg.posZ);
+  State.controls.target.set(cfg.tarX, cfg.tarY, cfg.tarZ);
+  State.controls.update();
+  syncCameraSlidersUI();
+}
+
+// --- 카메라 설정 플로팅 UI 제어 및 실시간 연동 ---
+function toggleCameraPanel(show) {
+  const panel = document.getElementById('teacher-camera-panel');
+  if (!panel) return;
+  panel.style.display = show ? 'flex' : 'none';
+  if (show) {
+    syncCameraSlidersUI();
+  }
+}
+
+function syncCameraSlidersUI() {
+  const cfg = State.teacherCamConfig;
+  const elements = {
+    'cam-pos-x': cfg.posX, 'cam-pos-y': cfg.posY, 'cam-pos-z': cfg.posZ,
+    'cam-tar-x': cfg.tarX, 'cam-tar-y': cfg.tarY, 'cam-tar-z': cfg.tarZ
+  };
+  for (const [id, val] of Object.entries(elements)) {
+    const el = document.getElementById(id);
+    if (el) el.value = val;
+    const label = document.getElementById(`${id}-val`);
+    if (label) label.innerText = parseFloat(val).toFixed(1);
+  }
+}
+
+function updateLiveCameraSetting(key, val) {
+  const floatVal = parseFloat(val);
+  let labelId = '';
+  if (key === 'posX') labelId = 'cam-pos-x-val';
+  else if (key === 'posY') labelId = 'cam-pos-y-val';
+  else if (key === 'posZ') labelId = 'cam-pos-z-val';
+  else if (key === 'tarX') labelId = 'cam-tar-x-val';
+  else if (key === 'tarY') labelId = 'cam-tar-y-val';
+  else if (key === 'tarZ') labelId = 'cam-tar-z-val';
+  
+  const label = document.getElementById(labelId);
+  if (label) label.innerText = floatVal.toFixed(1);
+  
+  if (!State.camera || !State.controls) return;
+  if (key === 'posX') State.camera.position.x = floatVal;
+  else if (key === 'posY') State.camera.position.y = floatVal;
+  else if (key === 'posZ') State.camera.position.z = floatVal;
+  else if (key === 'tarX') State.controls.target.x = floatVal;
+  else if (key === 'tarY') State.controls.target.y = floatVal;
+  else if (key === 'tarZ') State.controls.target.z = floatVal;
+  
+  State.controls.update();
+}
+
+function saveCameraSettings() {
+  if (!State.camera || !State.controls) return;
+  State.teacherCamConfig.posX = State.camera.position.x;
+  State.teacherCamConfig.posY = State.camera.position.y;
+  State.teacherCamConfig.posZ = State.camera.position.z;
+  State.teacherCamConfig.tarX = State.controls.target.x;
+  State.teacherCamConfig.tarY = State.controls.target.y;
+  State.teacherCamConfig.tarZ = State.controls.target.z;
+  
+  alert("카메라 설정값이 성공적으로 확정되었습니다!");
+  toggleCameraPanel(false);
+}
+
+function restoreDefaultCameraSettings() {
+  State.teacherCamConfig = {
+    posX: 0,
+    posY: 20,
+    posZ: -60,
+    tarX: 0,
+    tarY: 2,
+    tarZ: 35
+  };
+  resetTeacherCamera();
+  alert("카메라 설정이 기본값으로 초기화되었습니다.");
+}
+
 // --- 챌린지용 새로운 목표 생성 ---
 function generateNewChallenge() {
   if (State.simulationState !== 'idle' && State.simulationState !== 'stopped') return;
@@ -316,23 +400,8 @@ function updateTeacherPhysics(dt) {
   updateInstancedTrucks();
   updateStudentNameTags();
 
-  let totalZ = 0;
-  State.activeStudents.forEach(student => {
-    totalZ += State.studentCarPositions[student.id] !== undefined ? State.studentCarPositions[student.id] : START_Z;
-  });
-  const avgZ = State.activeStudents.length > 0 ? (totalZ / State.activeStudents.length) : START_Z;
-
-  const roadWidth = State.activeStudents.length === 1 ? 10 : State.activeStudents.length * 3.5 + 4;
-  const camX = - (roadWidth / 2 + 18);
-  const camY = 12;
-
-  if (State.simulationState === 'driving' || State.simulationState === 'braking') {
-    State.camera.position.set(camX, camY, avgZ + 5);
-    State.camera.lookAt(new THREE.Vector3(0, 1.5, avgZ));
-    State.controls.target.set(0, 1.5, avgZ);
-  } else {
-    State.controls.update();
-  }
+  // 교사용 카메라는 고정되어 조작을 위해 OrbitControls만 업데이트
+  State.controls.update();
 
   // 모든 차량이 멈췄을 때 리더보드 전환
   if (allStopped && State.activeStudents.length > 0 && (State.simulationState === 'driving' || State.simulationState === 'braking')) {
@@ -341,8 +410,6 @@ function updateTeacherPhysics(dt) {
     safeSetStyleDisplay('teacher-leaderboard-section', 'flex');
 
     State.controls.enabled = true;
-    State.controls.target.set(0, 1.5, avgZ);
-    State.controls.update();
   }
 }
 
@@ -397,6 +464,8 @@ function selectRole(role) {
     if (State.truckGroup) State.truckGroup.visible = false;
 
     initTeacherSession();
+    toggleCameraPanel(false);
+    resetTeacherCamera();
   } else {
     safeSetStyleDisplay('teacher-panel', 'none');
     safeSetStyleDisplay('student-panel', 'flex');
@@ -574,6 +643,7 @@ async function lockSessionSettings() {
 
   rebuildEnvironment(State.activeStudents.length || 1);
   setupTeacherInstancedTrucks(State.activeStudents.length || 1);
+  resetTeacherCamera();
 
   State.studentCarPositions = {};
   State.studentCarSpeeds = {};
@@ -610,6 +680,8 @@ async function lockSessionSettings() {
 async function unlockSessionSettings() {
   safeSetStyleDisplay('teacher-active', 'none');
   safeSetStyleDisplay('teacher-lobby', 'flex');
+  toggleCameraPanel(false);
+  resetTeacherCamera();
 
   State.students.forEach(s => {
     if (State.studentReadyStates[s.id]) {
@@ -1051,6 +1123,8 @@ function addStudentResult(res) {
 async function resetForNextRound() {
   safeSetStyleDisplay('teacher-leaderboard-section', 'none');
   safeSetStyleDisplay('teacher-lobby', 'flex');
+  toggleCameraPanel(false);
+  resetTeacherCamera();
 
   State.students.forEach(s => {
     if (State.studentReadyStates[s.id]) {
@@ -1146,6 +1220,10 @@ window.setControlMode = setControlMode;
 window.syncInputs = syncInputs;
 window.startSimulation = startSimulation;
 window.resetSimulation = resetSimulation;
+window.toggleCameraPanel = toggleCameraPanel;
+window.updateLiveCameraSetting = updateLiveCameraSetting;
+window.saveCameraSettings = saveCameraSettings;
+window.restoreDefaultCameraSettings = restoreDefaultCameraSettings;
 
 // --- 앱 로드 시작 ---
 window.onload = () => {

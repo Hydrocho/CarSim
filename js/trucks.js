@@ -314,7 +314,7 @@ export function setupTeacherInstancedTrucks(count) {
   if (State.instancedWheels) State.scene.remove(State.instancedWheels);
   if (State.instancedFakeShadows) State.scene.remove(State.instancedFakeShadows);
   if (State.instancedCargo) State.scene.remove(State.instancedCargo);
-  if (State.instancedArrows) State.scene.remove(State.instancedArrows);
+  if (State.instancedStopLines) State.scene.remove(State.instancedStopLines);
 
   const chassisGeo = new THREE.BoxGeometry(2.3, 0.3, 5.2);
   const chassisMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.4 });
@@ -361,26 +361,14 @@ export function setupTeacherInstancedTrucks(count) {
   State.instancedCargo.receiveShadow = false;
   State.scene.add(State.instancedCargo);
 
-  // 교사용 공중 표시 노란 화살표
-  const arrowShape = new THREE.Shape();
-  arrowShape.moveTo(-0.25, 0);
-  arrowShape.lineTo(0.25, 0);
-  arrowShape.lineTo(0.25, 0.4);
-  arrowShape.lineTo(0.6, 0.4);
-  arrowShape.lineTo(0, 1.0);
-  arrowShape.lineTo(-0.6, 0.4);
-  arrowShape.lineTo(-0.25, 0.4);
-  arrowShape.closePath();
-
-  const arrowGeo = new THREE.ShapeGeometry(arrowShape);
-  const arrowMat = new THREE.MeshBasicMaterial({
-    color: 0xffd600,
-    side: THREE.DoubleSide,
-    depthTest: false
+  // 교사용 차량 앞 정지 기준 가로줄 (Stop Line) Geometry: 폭 6.0m, 높이 0.02m, 두께 0.2m
+  const stopLineGeo = new THREE.BoxGeometry(6.0, 0.02, 0.2);
+  const stopLineMat = new THREE.MeshBasicMaterial({
+    color: 0xffd600,       // 노란색으로 복구
+    depthWrite: false      // 지면 깜빡임 방지 보조
   });
-  State.instancedArrows = new THREE.InstancedMesh(arrowGeo, arrowMat, count);
-  State.instancedArrows.renderOrder = 999;
-  State.scene.add(State.instancedArrows);
+  State.instancedStopLines = new THREE.InstancedMesh(stopLineGeo, stopLineMat, count);
+  State.scene.add(State.instancedStopLines);
 
   // 고유 색상 설정
   const colors = [0x00a8ff, 0xff1744, 0x00e676, 0xffea00, 0xd500f9, 0xff6d00, 0x00e5ff, 0xf50057];
@@ -525,17 +513,17 @@ export function updateInstancedTrucks() {
   State.instancedFakeShadows.instanceMatrix.needsUpdate = true;
   State.instancedCargo.instanceMatrix.needsUpdate = true;
 
-  // 7. 노란 화살표 위치 갱신
-  if (State.instancedArrows) {
+  // 7. 정지 가로줄(StopLine) 위치 갱신 (트럭 앞 범퍼 끝단 정렬)
+  if (State.instancedStopLines) {
     State.activeStudents.forEach((student, index) => {
       const zPos = State.studentCarPositions[student.id] !== undefined ? State.studentCarPositions[student.id] : START_Z;
       const xPos = getLaneX(index, State.activeStudents.length);
-      dummy.position.set(xPos, 3.5, zPos - 0.5);
-      dummy.rotation.set(Math.PI / 2, 0, 0);
+      dummy.position.set(xPos, 0.015, zPos + 2.5); // X=xPos(차선 한가운데), Y=0.015(노면보다 약간 위), Z=zPos+2.5(앞범퍼 정렬)
+      dummy.rotation.set(0, 0, 0); // BoxGeometry 이므로 회전 필요 없음
       dummy.scale.set(1, 1, 1);
       dummy.updateMatrix();
-      State.instancedArrows.setMatrixAt(index, dummy.matrix);
+      State.instancedStopLines.setMatrixAt(index, dummy.matrix);
     });
-    State.instancedArrows.instanceMatrix.needsUpdate = true;
+    State.instancedStopLines.instanceMatrix.needsUpdate = true;
   }
 }

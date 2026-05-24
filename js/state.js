@@ -56,7 +56,7 @@ export const State = {
   instancedWheels: null,
   instancedFakeShadows: null,
   instancedCargo: null,
-  instancedArrows: null,
+  instancedStopLines: null,
 
   // 시뮬레이션 물리 제어 변수
   simulationState: 'idle', // 'idle' | 'driving' | 'braking' | 'stopped'

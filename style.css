@@ -831,6 +831,49 @@ input[type=range]:active::-webkit-slider-thumb {
   box-shadow: 0 0 10px rgba(0, 229, 255, 0.25);
 }
 
+/* 중복 닉네임 에러 인라인 메시지 */
+.nickname-error-msg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 7px;
+  padding: 9px 13px;
+  background: rgba(255, 77, 109, 0.12);
+  border: 1px solid rgba(255, 77, 109, 0.4);
+  border-radius: 8px;
+  color: #ff6b8a;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.4;
+  animation: shake 0.35s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+.nickname-error-msg::before {
+  content: "⚠️";
+  flex-shrink: 0;
+  font-size: 1rem;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-6px); }
+  40%       { transform: translateX(6px); }
+  60%       { transform: translateX(-4px); }
+  80%       { transform: translateX(4px); }
+}
+
+/* 중복 에러 시 입력칸 빨간 테두리 */
+.login-form input[type="text"].input-error {
+  border-color: #ff4d6d;
+  box-shadow: 0 0 10px rgba(255, 77, 109, 0.25);
+}
+
+.login-form input[type="text"].input-error:focus {
+  border-color: #ff4d6d;
+  box-shadow: 0 0 14px rgba(255, 77, 109, 0.35);
+}
+
+
 /* PIN Display Card (Teacher Lobby) */
 .pin-display-card {
   background: linear-gradient(135deg, rgba(0, 229, 255, 0.08) 0%, rgba(0, 134, 255, 0.08) 100%);

@@ -52,11 +52,14 @@
         <div class="control-group">
           <label for="student-nickname">이름 (닉네임)</label>
           <input type="text" id="student-nickname" placeholder="이름을 입력하세요" maxlength="10">
+          <!-- 중복 이름 에러 메시지 -->
+          <div id="nickname-duplicate-error" class="nickname-error-msg" style="display: none;"></div>
         </div>
         <button id="btn-student-join" class="btn btn-primary" onclick="joinSession()">참가하기</button>
       </div>
     </div>
   </div>
+
 
   <!-- 메인 UI 레이아웃 오버레이 -->
   <div class="ui-wrapper" id="main-ui" style="display: none;">

@@ -518,14 +518,58 @@ function setupTeacherRealtime() {
   realtimeChannel
     .on('presence', { event: 'sync' }, () => {
       const state = realtimeChannel.presenceState();
-      State.students = [];
+      const allStudents = [];
       Object.keys(state).forEach(key => {
         state[key].forEach(p => {
           if (p.role === 'student') {
-            State.students.push({ id: p.id, nickname: p.nickname });
+            allStudents.push({ id: p.id, nickname: p.nickname });
           }
         });
       });
+
+      // 1. 기존 학생들의 ID 목록 구축
+      const existingStudentIds = new Set((State.students || []).map(s => s.id));
+
+      const finalStudents = [];
+      const usedNicknames = new Set();
+      const toKick = [];
+
+      // 2. 이미 로비에 접속해있던 기존 학생들에게 닉네임 우선권을 부여하여 먼저 매핑
+      allStudents.forEach(p => {
+        if (existingStudentIds.has(p.id)) {
+          if (usedNicknames.has(p.nickname)) {
+            toKick.push(p);
+          } else {
+            usedNicknames.add(p.nickname);
+            finalStudents.push(p);
+          }
+        }
+      });
+
+      // 3. 새로 들어오는 학생들의 닉네임을 검사
+      allStudents.forEach(p => {
+        if (!existingStudentIds.has(p.id)) {
+          if (usedNicknames.has(p.nickname)) {
+            toKick.push(p);
+          } else {
+            usedNicknames.add(p.nickname);
+            finalStudents.push(p);
+          }
+        }
+      });
+
+      // 4. 중복 학생들에게 강제 퇴장 브로드캐스트 전송
+      toKick.forEach(p => {
+        console.warn(`중복 닉네임 감지: ${p.nickname} (ID: ${p.id}) 강제 퇴장 처리`);
+        realtimeChannel.send({
+          type: 'broadcast',
+          event: 'kick-student',
+          payload: { targetId: p.id, reason: 'duplicate_nickname' }
+        });
+      });
+
+      // 5. 최종 학생 정보 상태 업데이트 및 UI 갱신
+      State.students = finalStudents;
       updateStudentLobbyUI();
     })
     .on('broadcast', { event: 'student-ready' }, ({ payload }) => {
@@ -809,6 +853,12 @@ async function proceedActualLaunch() {
 function joinSession() {
   const pinInput = document.getElementById('student-pin');
   const nickInput = document.getElementById('student-nickname');
+  const joinBtn = document.getElementById('btn-student-join');
+  const errEl = document.getElementById('nickname-duplicate-error');
+
+  // 이전 에러 초기화
+  if (errEl) errEl.style.display = 'none';
+  if (nickInput) nickInput.classList.remove('input-error');
 
   State.sessionPin = "802935";
   if (pinInput) {
@@ -826,8 +876,15 @@ function joinSession() {
     return;
   }
 
+  // 접속 시도 중 버튼 비활성화
+  if (joinBtn) {
+    joinBtn.disabled = true;
+    joinBtn.textContent = '접속 중...';
+  }
+
   setupStudentRealtime();
 }
+
 
 function setupStudentRealtime() {
   realtimeChannel = supabaseClient.channel(`room_${State.sessionPin}`);
@@ -850,11 +907,44 @@ function setupStudentRealtime() {
     })
     .on('broadcast', { event: 'kick-student' }, ({ payload }) => {
       if (payload.targetId === State.myStudentId) {
-        onKicked();
+        if (payload.reason === 'duplicate_nickname') {
+          if (realtimeChannel) {
+            realtimeChannel.untrack();
+            supabaseClient.removeChannel(realtimeChannel);
+            realtimeChannel = null;
+          }
+          safeSetStyleDisplay('student-wait-message', 'none');
+          safeSetStyleDisplay('student-dashboard', 'none');
+          safeSetStyleDisplay('student-result-modal', 'none');
+          safeSetStyleDisplay('student-login-overlay', 'flex');
+          showNicknameDuplicateError(State.myNickname);
+        } else {
+          onKicked();
+        }
       }
     })
     .subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
+        // --- 중복 닉네임 체크 ---
+        const currentPresence = realtimeChannel.presenceState();
+        let isDuplicate = false;
+        Object.values(currentPresence).forEach(presences => {
+          presences.forEach(p => {
+            if (p.role === 'student' && p.nickname === State.myNickname) {
+              isDuplicate = true;
+            }
+          });
+        });
+
+        if (isDuplicate) {
+          // 채널 정리 후 로그인 화면으로 복귀
+          await realtimeChannel.untrack();
+          supabaseClient.removeChannel(realtimeChannel);
+          realtimeChannel = null;
+          showNicknameDuplicateError(State.myNickname);
+          return;
+        }
+        // --- 중복 없음: 정상 접속 ---
         State.myStudentId = 'student_' + Math.random().toString(36).substring(2, 9);
 
         await realtimeChannel.track({
@@ -863,9 +953,13 @@ function setupStudentRealtime() {
           nickname: State.myNickname
         });
 
+        // 접속 성공: 로그인 화면 숨기기
         safeSetStyleDisplay('student-login-overlay', 'none');
         showStudentLobbyWait();
       } else if (status === 'CHANNEL_ERROR') {
+        // 연결 오류: 버튼 복구
+        const joinBtn = document.getElementById('btn-student-join');
+        if (joinBtn) { joinBtn.disabled = false; joinBtn.textContent = '참가하기'; }
         alert("서버 연결 오류가 발생했습니다.");
       }
     });
@@ -874,6 +968,34 @@ function setupStudentRealtime() {
 function showStudentLobbyWait() {
   safeSetStyleDisplay('student-wait-message', 'flex');
   safeSetStyleDisplay('student-dashboard', 'none');
+}
+
+// --- 학생: 중복 닉네임 오류 표시 ---
+function showNicknameDuplicateError(nickname) {
+  const errEl = document.getElementById('nickname-duplicate-error');
+  const nickInput = document.getElementById('student-nickname');
+  const joinBtn = document.getElementById('btn-student-join');
+
+  // 버튼 봅구 (retry 가능하게)
+  if (joinBtn) {
+    joinBtn.disabled = false;
+    joinBtn.textContent = '참가하기';
+  }
+
+  if (errEl) {
+    errEl.textContent = `'​${nickname}'은(는) 이미 접속 중입니다. 다른 이름으로 입력해 주세요.`;
+    errEl.style.display = 'flex';
+  }
+  if (nickInput) {
+    nickInput.focus();
+    nickInput.select();
+    nickInput.classList.add('input-error');
+    // 입력 시 오류 강조 자동 제거
+    nickInput.addEventListener('input', () => {
+      nickInput.classList.remove('input-error');
+      if (errEl) errEl.style.display = 'none';
+    }, { once: true });
+  }
 }
 
 // --- 학생: 교사에 의해 퇴장 처리 ---

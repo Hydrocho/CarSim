@@ -5,7 +5,7 @@ import { START_Z, BRAKE_Z, WHEEL_RADIUS } from './js/constants.js';
 import { getDeceleration, getStopTime, getBrakingPositionZ, getBrakingSpeed } from './js/physics.js';
 import { initScene, handleWindowResize, rebuildEnvironment } from './js/graphics.js';
 import { getLaneX, createPickupTruck, updateCargoBoxes, setBrakeLightsActive, setupTeacherInstancedTrucks, updateInstancedTrucks } from './js/trucks.js';
-import { supabaseClient, isConnected, deleteSession, insertSession, updateSessionSettings, updateSessionStatus, insertResult, fetchSession } from './js/supabase.js';
+import { supabaseClient, isConnected, deleteSession, insertSession, updateSessionSettings, updateSessionStatus, insertResult, fetchSession, checkIsTeacherAllowed, fetchAllowedTeachers, allowTeacher, disallowTeacher } from './js/supabase.js';
 import {
   safeSetDisabled,
   safeSetText,
@@ -63,13 +63,22 @@ function init() {
   if (isConnected()) {
     console.log("[Debug] Supabase 연결 확인됨. 세션 조회 시작...");
     supabaseClient.auth.getSession()
-      .then(({ data: { session } }) => {
+      .then(async ({ data: { session } }) => {
         console.log("[Debug] 초기 세션 조회 완료. 세션 존재 여부:", !!session);
         if (session) {
-          console.log("[Debug] 기존 로그인 세션 감지. 교사 모드로 자동 전환합니다.");
-          selectRole('teacher').catch(err => {
-            console.error("[Debug] 자동 로그인 진입 실패:", err);
-          });
+          console.log("[Debug] 기존 로그인 세션 감지. 화이트리스트 검사 중...");
+          const isAllowed = await checkIsTeacherAllowed(session.user.email);
+          if (isAllowed) {
+            console.log("[Debug] 승인된 교사 계정 확인. 교사 모드로 자동 전환합니다.");
+            selectRole('teacher').catch(err => {
+              console.error("[Debug] 자동 로그인 진입 실패:", err);
+            });
+          } else {
+            console.warn("[Debug] 자동 로그인 차단: 승인되지 않은 계정입니다. 로그아웃 처리 중...");
+            alert(`교사 권한이 없는 계정입니다!\n\n접속 계정: ${session.user.email}\n교사로 승인된 이메일만 진입할 수 있습니다.`);
+            await supabaseClient.auth.signOut();
+            window.location.href = window.location.origin + window.location.pathname; // 해시/쿼리 날리고 리셋
+          }
         }
       })
       .catch(err => {
@@ -548,6 +557,17 @@ async function selectRole(role) {
         return;
       }
 
+      // 구글 로그인 성공 후 돌아왔을 때 교사 승인 여부 추가 검증
+      console.log("[Debug] 구글 세션 확인됨. 화이트리스트 이메일 대조 중:", session.user.email);
+      const isAllowed = await checkIsTeacherAllowed(session.user.email);
+      if (!isAllowed) {
+        console.warn("[Debug] 승인되지 않은 구글 계정 진입 시도 차단:", session.user.email);
+        alert(`교사 권한이 없는 계정입니다!\n\n접속 계정: ${session.user.email}\n교사로 승인된 이메일만 진입할 수 있습니다.`);
+        await supabaseClient.auth.signOut();
+        window.location.href = window.location.origin + window.location.pathname; // 해시/쿼리 날리고 리셋
+        return;
+      }
+
       console.log("[Debug] 구글 세션 검증 성공. 교사용 UI 레이아웃 활성화 시작");
       State.isMultiplayer = true;
       safeSetStyleDisplay('role-overlay', 'none');
@@ -560,6 +580,9 @@ async function selectRole(role) {
       toggleCameraPanel(false);
       resetTeacherCamera();
       safeSetStyleDisplay('teacher-large-lobby-panel', 'flex');
+      
+      // 로그인 및 승인 확인 시 교사 관리 버튼 활성화
+      safeSetStyleDisplay('btn-open-teacher-admin', 'block');
     } catch (err) {
       console.error("[Debug] 교사 로그인 처리 중 오류 발생:", err);
       alert("교사 로그인 처리 중 오류가 발생했습니다:\n" + (err.message || err));
@@ -1150,6 +1173,117 @@ function closeTeacherResultOverlay() {
   safeSetStyleDisplay('teacher-result-overlay', 'none');
 }
 
+// --- 교사용 승인 계정 관리자 모달 제어 및 API 연동 ---
+async function openTeacherAdminModal() {
+  const modal = document.getElementById('teacher-admin-modal');
+  if (!modal) return;
+  
+  modal.style.display = 'flex';
+  await refreshAllowedTeachersList();
+}
+
+function closeTeacherAdminModal() {
+  safeSetStyleDisplay('teacher-admin-modal', 'none');
+  const emailInput = document.getElementById('new-teacher-email');
+  if (emailInput) emailInput.value = '';
+}
+
+async function refreshAllowedTeachersList() {
+  const listContainer = document.getElementById('allowed-teachers-list');
+  if (!listContainer) return;
+
+  listContainer.innerHTML = '<p class="empty-list-msg" style="padding:10px 0; color:#cbd5e1; text-align:center;">조회 중...</p>';
+
+  try {
+    const list = await fetchAllowedTeachers();
+    listContainer.innerHTML = '';
+
+    if (list.length === 0) {
+      listContainer.innerHTML = '<p class="empty-list-msg" style="padding:10px 0; color:#64748b; text-align:center;">등록된 교사가 없습니다.</p>';
+      return;
+    }
+
+    list.forEach(teacher => {
+      const row = document.createElement('div');
+      row.className = 'admin-teacher-row';
+      
+      const emailSpan = document.createElement('span');
+      emailSpan.className = 'admin-teacher-email';
+      emailSpan.textContent = teacher.email;
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'admin-teacher-delete-btn';
+      deleteBtn.title = `${teacher.email} 삭제`;
+      deleteBtn.textContent = '×';
+      deleteBtn.onclick = async () => {
+        if (confirm(`${teacher.email} 계정의 교사 승인을 취소하시겠습니까?`)) {
+          const { error } = await disallowTeacher(teacher.email);
+          if (error) {
+            alert("삭제 실패: " + error.message);
+          } else {
+            await refreshAllowedTeachersList();
+          }
+        }
+      };
+
+      row.appendChild(emailSpan);
+      row.appendChild(deleteBtn);
+      listContainer.appendChild(row);
+    });
+  } catch (err) {
+    console.error("교사 목록 갱신 오류:", err);
+    listContainer.innerHTML = '<p class="empty-list-msg" style="color:#ef4444; padding:10px 0; text-align:center;">목록 갱신 실패</p>';
+  }
+}
+
+async function handleAddTeacher() {
+  const emailInput = document.getElementById('new-teacher-email');
+  if (!emailInput) return;
+
+  const email = emailInput.value.trim();
+  if (!email) {
+    alert("이메일을 입력해 주세요.");
+    return;
+  }
+
+  // 간단한 이메일 형식 검증
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    alert("올바른 이메일 형식이 아닙니다.");
+    return;
+  }
+
+  try {
+    const { error } = await allowTeacher(email);
+    if (error) {
+      if (error.code === '23505') {
+        alert("이미 승인되어 있는 교사 이메일입니다.");
+      } else {
+        alert("추가 실패: " + error.message);
+      }
+    } else {
+      emailInput.value = '';
+      await refreshAllowedTeachersList();
+    }
+  } catch (err) {
+    console.error("교사 계정 추가 오류:", err);
+    alert("추가 처리 중 오류 발생");
+  }
+}
+
+async function handleTeacherLogout() {
+  if (isConnected() && confirm("로그아웃 하시겠습니까?")) {
+    try {
+      console.log("[Debug] 교사 로그아웃 요청...");
+      await supabaseClient.auth.signOut();
+      window.location.reload();
+    } catch (err) {
+      console.error("로그아웃 중 에러 발생:", err);
+      alert("로그아웃 처리 중 에러가 발생했습니다.");
+    }
+  }
+}
+
 function onTeacherLockSettings(config) {
   safeSetStyleDisplay('student-wait-message', 'none');
   safeSetStyleDisplay('student-dashboard', 'flex');
@@ -1675,6 +1809,10 @@ window.kickStudent = kickStudent;
 window.returnToLogin = returnToLogin;
 window.showTeacherResultOverlay = showTeacherResultOverlay;
 window.closeTeacherResultOverlay = closeTeacherResultOverlay;
+window.openTeacherAdminModal = openTeacherAdminModal;
+window.closeTeacherAdminModal = closeTeacherAdminModal;
+window.handleAddTeacher = handleAddTeacher;
+window.handleTeacherLogout = handleTeacherLogout;
 
 // --- 앱 로드 시작 ---
 window.onload = () => {

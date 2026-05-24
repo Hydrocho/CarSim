@@ -118,3 +118,68 @@ export async function fetchSession(pinCode) {
   }
   return data;
 }
+
+/**
+ * 특정 구글 이메일이 allowed_teachers 화이트리스트에 있는지 체크
+ */
+export async function checkIsTeacherAllowed(email) {
+  if (!supabaseClient || !email) return false;
+  
+  const { data, error } = await supabaseClient
+    .from('allowed_teachers')
+    .select('email');
+  
+  if (error) {
+    console.error("[Debug] 교사 권한 체크 실패 (DB 에러):", error);
+    return false;
+  }
+
+  // RLS 미설정으로 전체 조회된 목록 중 일치하는 이메일이 있는지 대소문자 및 양끝 공백 무시하고 비교
+  const isAllowed = data.some(item => 
+    item.email && item.email.trim().toLowerCase() === email.trim().toLowerCase()
+  );
+
+  console.log(`[Debug] 화이트리스트 대조 완료:
+  - 검사 대상 이메일: ${email}
+  - 승인된 이메일 목록:`, data.map(d => d.email), `
+  - 결과: ${isAllowed ? '승인됨 (진입 허용)' : '미승인 (차단)'}`);
+
+  return isAllowed;
+}
+
+/**
+ * 승인된 교사 이메일 목록 전체 패치
+ */
+export async function fetchAllowedTeachers() {
+  if (!supabaseClient) return [];
+  const { data, error } = await supabaseClient
+    .from('allowed_teachers')
+    .select('*')
+    .order('created_at', { ascending: true });
+  if (error) {
+    console.error("교사 목록 조회 실패:", error);
+    return [];
+  }
+  return data;
+}
+
+/**
+ * 신규 교사 이메일 승인 추가
+ */
+export async function allowTeacher(email) {
+  if (!supabaseClient) return null;
+  return await supabaseClient
+    .from('allowed_teachers')
+    .insert([{ email }]);
+}
+
+/**
+ * 교사 이메일 승인 취소 (제거)
+ */
+export async function disallowTeacher(email) {
+  if (!supabaseClient) return null;
+  return await supabaseClient
+    .from('allowed_teachers')
+    .delete()
+    .eq('email', email);
+}

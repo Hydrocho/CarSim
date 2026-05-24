@@ -22,6 +22,14 @@ export function isConnected() {
  */
 export async function deleteSession(pinCode) {
   if (!supabaseClient) return null;
+
+  // 외래 키 제약 조건(ON DELETE CASCADE 누락 대비) 우회: 자식 레코드(results) 선제 삭제
+  await supabaseClient
+    .from('results')
+    .delete()
+    .eq('session_pin', pinCode);
+
+  // 부모 레코드(sessions) 삭제
   return await supabaseClient
     .from('sessions')
     .delete()

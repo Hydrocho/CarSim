@@ -3,9 +3,9 @@
 import { State, CAMERA_OFFSETS } from './js/state.js';
 import { START_Z, BRAKE_Z, WHEEL_RADIUS } from './js/constants.js';
 import { getDeceleration, getStopTime, getBrakingPositionZ, getBrakingSpeed } from './js/physics.js';
-import { initScene, handleWindowResize } from './js/graphics.js';
+import { initScene, handleWindowResize, rebuildEnvironment } from './js/graphics.js';
 import { getLaneX, createPickupTruck, updateCargoBoxes, setBrakeLightsActive, setupTeacherInstancedTrucks, updateInstancedTrucks } from './js/trucks.js';
-import { supabaseClient, isConnected, deleteSession, insertSession, updateSessionSettings, updateSessionStatus, insertResult } from './js/supabase.js';
+import { supabaseClient, isConnected, deleteSession, insertSession, updateSessionSettings, updateSessionStatus, insertResult, fetchSession } from './js/supabase.js';
 import {
   safeSetDisabled,
   safeSetText,
@@ -31,6 +31,9 @@ function init() {
 
   // 1. 3D 그래픽스 초기화 (Scene, Camera, Renderer 등)
   initScene(container);
+
+  // 1.5. 기본 1차선 도로 노면 및 환경 구축
+  rebuildEnvironment(1);
 
   // 2. 단일 주행용 픽업 트럭 생성
   createPickupTruck();
@@ -411,11 +414,19 @@ async function initTeacherSession() {
   }
 
   try {
-    await deleteSession(State.sessionPin);
-    const { error } = await insertSession(State.sessionPin, State.targetDistance, State.controlMode);
+    // 1. 해당 PIN의 기존 세션이 있는지 먼저 조회 (SELECT는 anon 허용)
+    const existingSession = await fetchSession(State.sessionPin);
 
-    if (error) {
-      console.warn("기본 PIN 등록 실패:", error);
+    if (existingSession) {
+      // 2-A. 세션이 이미 존재하면 DELETE 권한 부족을 고려하여 지우지 않고 바로 LOBBY 상태로 업데이트(리셋)
+      await updateSessionSettings(State.sessionPin, State.targetDistance, State.controlMode);
+      await updateSessionStatus(State.sessionPin, 'LOBBY');
+    } else {
+      // 2-B. 세션이 존재하지 않을 때만 최초 1회 신규 등록 (INSERT)
+      const { error } = await insertSession(State.sessionPin, State.targetDistance, State.controlMode);
+      if (error) {
+        console.warn("기본 PIN 신규 등록 실패:", error);
+      }
     }
 
     safeSetText('teacher-pin-value', State.sessionPin);

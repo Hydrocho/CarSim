@@ -28,10 +28,16 @@ import {
 
 // --- 앱 초기화 ---
 function init() {
+  console.log("[Debug] CarSim 앱 초기화 시작 (init 호출)");
+  
+  // URL 인증 에러 체크
+  checkAuthErrorInURL();
+
   const container = document.getElementById('canvas-container');
 
   // 1. 3D 그래픽스 초기화 (Scene, Camera, Renderer 등)
   initScene(container);
+  console.log("[Debug] 3D 그래픽스 씬 초기화 완료");
 
   // 1.5. 기본 1차선 도로 노면 및 환경 구축
   rebuildEnvironment(1);
@@ -52,6 +58,56 @@ function init() {
   window.addEventListener('resize', () => handleWindowResize(container));
   State.clock = new THREE.Clock();
   State.renderer.setAnimationLoop(update);
+
+  // 7. Supabase Google OAuth 로그인 세션 확인 및 자동 진입
+  if (isConnected()) {
+    console.log("[Debug] Supabase 연결 확인됨. 세션 조회 시작...");
+    supabaseClient.auth.getSession()
+      .then(({ data: { session } }) => {
+        console.log("[Debug] 초기 세션 조회 완료. 세션 존재 여부:", !!session);
+        if (session) {
+          console.log("[Debug] 기존 로그인 세션 감지. 교사 모드로 자동 전환합니다.");
+          selectRole('teacher').catch(err => {
+            console.error("[Debug] 자동 로그인 진입 실패:", err);
+          });
+        }
+      })
+      .catch(err => {
+        console.error("[Debug] 초기 세션 획득 에러:", err);
+      });
+  } else {
+    console.warn("[Debug] Supabase 연결이 안 되어 있어 세션 조회를 건너뜁니다.");
+  }
+}
+
+// --- URL 인증 에러 파싱 및 디버그용 노출 ---
+function checkAuthErrorInURL() {
+  const urlParams = new URLSearchParams(window.location.search);
+  let error = urlParams.get('error');
+  let errorDesc = urlParams.get('error_description');
+  let errorCode = urlParams.get('error_code');
+
+  if (window.location.hash) {
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    if (hashParams.has('error')) {
+      error = hashParams.get('error');
+      errorDesc = hashParams.get('error_description') || errorDesc;
+      errorCode = hashParams.get('error_code') || errorCode;
+    }
+  }
+
+  if (error) {
+    const desc = decodeURIComponent(errorDesc || '알 수 없는 오류').replace(/\+/g, ' ');
+    const code = errorCode || 'unexpected_failure';
+    
+    console.error(`%c[Supabase Auth 에러 감지]
+----------------------------------------
+오류 코드: ${code}
+상세 설명: ${desc}
+----------------------------------------`, "color: #ff3366; font-weight: bold; font-size: 13px; line-height: 1.5;");
+
+    alert(`구글 로그인 실패!\n\n오류 코드: ${code}\n오류 설명: ${desc}\n\n💡 해결 팁:\n1. Supabase Dashboard에 입력하신 구글 Client ID 및 Client Secret 값이 구글 클라우드 콘솔의 값과 완벽히 일치하는지 다시 복사해서 붙여넣어 보세요.\n2. 현재 테스트 중인 브라우저 주소(${window.location.origin})가 Supabase의 URL Configuration -> Redirect URLs에 정확히 추가되어 있는지 확인하세요.`);
+  }
 }
 
 // --- 카메라 기본 위치 리셋 ---
@@ -461,22 +517,58 @@ function updateStudentNameTags() {
 // --- 실시간 멀티플레이어 채널 바인딩 및 세션 제어 ---
 let realtimeChannel = null;
 
-function selectRole(role) {
+async function selectRole(role) {
+  console.log(`[Debug] selectRole('${role}') 실행됨`);
   State.userRole = role;
-  State.isMultiplayer = true;
-  safeSetStyleDisplay('role-overlay', 'none');
-  safeSetStyleDisplay('main-ui', 'grid');
 
   if (role === 'teacher') {
-    safeSetStyleDisplay('teacher-panel', 'flex');
-    safeSetStyleDisplay('student-panel', 'none');
-    if (State.truckGroup) State.truckGroup.visible = false;
+    if (!isConnected()) {
+      alert("수파베이스가 연결되지 않았습니다.");
+      return;
+    }
 
-    initTeacherSession();
-    toggleCameraPanel(false);
-    resetTeacherCamera();
-    safeSetStyleDisplay('teacher-large-lobby-panel', 'flex');
+    try {
+      console.log("[Debug] 교사 로그인 시도. Supabase Auth 세션 조회 시작...");
+      const { data: { session }, error } = await supabaseClient.auth.getSession();
+      if (error) throw error;
+
+      console.log("[Debug] 세션 상태:", !!session);
+      if (!session) {
+        console.log("[Debug] 활성 세션 없음. Google OAuth 로그인 리다이렉션 트리거...");
+        const redirectUrl = window.location.origin + window.location.pathname;
+        console.log("[Debug] 리다이렉션 복귀 주소(redirectTo):", redirectUrl);
+
+        const { error: signInError } = await supabaseClient.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: redirectUrl
+          }
+        });
+        if (signInError) throw signInError;
+        return;
+      }
+
+      console.log("[Debug] 구글 세션 검증 성공. 교사용 UI 레이아웃 활성화 시작");
+      State.isMultiplayer = true;
+      safeSetStyleDisplay('role-overlay', 'none');
+      safeSetStyleDisplay('main-ui', 'grid');
+      safeSetStyleDisplay('teacher-panel', 'flex');
+      safeSetStyleDisplay('student-panel', 'none');
+      if (State.truckGroup) State.truckGroup.visible = false;
+
+      initTeacherSession();
+      toggleCameraPanel(false);
+      resetTeacherCamera();
+      safeSetStyleDisplay('teacher-large-lobby-panel', 'flex');
+    } catch (err) {
+      console.error("[Debug] 교사 로그인 처리 중 오류 발생:", err);
+      alert("교사 로그인 처리 중 오류가 발생했습니다:\n" + (err.message || err));
+    }
   } else {
+    console.log("[Debug] 학생 모드로 진입합니다.");
+    State.isMultiplayer = true;
+    safeSetStyleDisplay('role-overlay', 'none');
+    safeSetStyleDisplay('main-ui', 'grid');
     safeSetStyleDisplay('teacher-panel', 'none');
     safeSetStyleDisplay('student-panel', 'flex');
     safeSetStyleDisplay('student-login-overlay', 'flex');

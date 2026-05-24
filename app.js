@@ -688,6 +688,7 @@ async function lockSessionSettings() {
 
   safeSetStyleDisplay('teacher-lobby', 'none');
   safeSetStyleDisplay('teacher-active', 'flex');
+  safeSetStyleDisplay('btn-teacher-unlock', 'flex');
   safeSetStyleDisplay('teacher-large-lobby-panel', 'none');
 
   safeSetText('active-target-dist', `${State.targetDistance}m`);
@@ -833,6 +834,7 @@ async function proceedActualLaunch() {
     startBtn.innerHTML = `<svg class="icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>🚀 출발!`;
     startBtn.className = 'btn btn-primary';
   }
+  safeSetStyleDisplay('btn-teacher-unlock', 'none');
 
   State.simulationState = 'driving';
 

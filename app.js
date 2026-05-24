@@ -1025,6 +1025,14 @@ function returnToLogin() {
   State.simulationState = 'idle';
   const nickInput = document.getElementById('student-nickname');
   if (nickInput) nickInput.value = '';
+  
+  // 참가 버튼 상태 리셋
+  const joinBtn = document.getElementById('btn-student-join');
+  if (joinBtn) {
+    joinBtn.disabled = false;
+    joinBtn.textContent = '참가하기';
+  }
+  
   // 로그인 화면 재노출
   safeSetStyleDisplay('student-login-overlay', 'flex');
 }
